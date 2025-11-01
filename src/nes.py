@@ -40,7 +40,7 @@ class NES:
             self.ppu.set_mask(value)
         elif 0x2005 == addr:
             # Something with scrolling. Not important for drawing things on the screen
-            self.ppu.r_W = True
+            self.ppu.r_W = not self.ppu.r_W
         elif 0x2006 == addr:
             self.ppu.write_addr(value)
         elif 0x2007 == addr:

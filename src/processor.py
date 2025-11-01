@@ -121,7 +121,7 @@ class CPU6502:
 
     def execute(self):
         opcode = self.read(self.r_PC)
-        print(f"Executing {opcode:02X}")
+        print(f"Executing {opcode:02X} on PC: {self.r_PC:04X}")
         self.r_PC += 1
         if opcode == 0xE0: # CPX imm
             value = self.r_X - self.read(self.r_PC)

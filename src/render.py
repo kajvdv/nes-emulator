@@ -23,15 +23,9 @@ class PatternTable:
     def __init__(self, data: bytes):
         assert len(data) == 16*16*16 # 16 rows of 16 tiles that are 16 bytes each
         self.tiles: list[PatternTile] = []
-        tile_bytes = data[:16]
-        for i, byte in enumerate(data, start=16):
-            if i % 16 == 0:
-                tile = PatternTile(tile_bytes)
-                self.tiles.append(tile)
-                tile_bytes = b""
-            tile_bytes += bytes([byte])
-        tile = PatternTile(tile_bytes)
-        self.tiles.append(tile)
+        for i in range(0, len(data), 16):
+            tile = PatternTile(data[i:i+16])
+            self.tiles.append(tile)
 
 
 class Palette:
@@ -101,13 +95,15 @@ class PPU2c02:
     def write_addr(self, value: int):
         if self.r_W == False:
             self.vram_addr = value << 8
+            self.r_W = True
         else:
             self.vram_addr |= value
+            self.vram_addr &= 0x3FFF
+            self.r_W = False
             print(f"VRAM addr set to {self.vram_addr:04X}")
-        self.r_W = True
 
     def write_data(self, value: int):
-        print(f"Writing 0x{value:02X} to 0x{self.vram_addr=:04X}")
+        print(f"Writing 0x{value:02X} to 0x{self.vram_addr:04X}")
         if 0x2000 <= self.vram_addr < 0x23C0:    
             index = self.vram_addr & 0x1FFF
             col = index % 32

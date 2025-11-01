@@ -2,7 +2,7 @@ from time import sleep
 
 from cartridge import Cartridge
 from screen import Screen
-from render import PatternTile, NameTable, Palette
+from render import PatternTile, NameTable, Palette, PPU2c02
 from nes import NES
 
 
@@ -44,8 +44,6 @@ def test_resolve_colors_frame():
     ]
 
 def test_write_to_nametable():
-    from render import NameTable, PatternTile, Palette
-
     nametable = NameTable()
     tile = PatternTile(b"\x80\x80\x00\x00\x00\x00\x00\x00\x80\x80\x00\x00\x00\x00\x00\x00")
     nametable.write_tile(tile, 0, 0)
@@ -59,10 +57,21 @@ def test_draw_pixel_on_screen(screen: Screen):
     sleep(1)
 
 
-def test_render_nametable(screen: Screen, nes: NES):
-    nes.ppu.write_tile(n_x=0, n_y=0, pattern_index=6)
-    nes.ppu.write_tile(n_x=10, n_y=10, pattern_index=7)
-    nes.ppu.write_tile(n_x=31, n_y=29, pattern_index=7)
+def test_render_nametable(screen: Screen, nes: NES, ppu: PPU2c02):
+    ppu.write_tile(n_x=0, n_y=0, pattern_index=3)
+    ppu.write_tile(n_x=10, n_y=10, pattern_index=7)
+    ppu.write_tile(n_x=31, n_y=29, pattern_index=7)
+    frame = nes.resolve_frame()
+    screen.draw_frame(frame)
+    screen.update()
+    screen.update()
+    sleep(2)
+
+
+def test_write_to_vram(screen: Screen, nes: NES, ppu: PPU2c02):
+    ppu.write_addr(0x10)
+    ppu.write_addr(0x01)
+    ppu.write_data(5)
     frame = nes.resolve_frame()
     screen.draw_frame(frame)
     screen.update()

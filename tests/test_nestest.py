@@ -1,5 +1,6 @@
 # A set of unit tests to make the nestest rom work.
-
+# Upload the rom in a disassambler and remove the header
+# This will get the right mapping between location and address
 
 import pytest
 
@@ -18,12 +19,13 @@ def cartridge_fixture():
 
 def test_set_vram_address(nes: NES, cpu: CPU6502, ppu: PPU2c02):
     '''
-    0020   A2 20                LDX #$20
-    0022   8E 06 20             STX $2006
-    0025   A2 00                LDX #$00
-    0027   8E 06 20             STX $2006'''
+    0024   A2 20                LDX #$20
+    0026   8E 06 20             STX $2006
+    0029   A2 00                LDX #$00
+    002B   8E 06 20             STX $2006
+    '''
     nes.reset()
-    cpu.r_PC += 0x20
+    cpu.r_PC = 0x8024
     for _ in range(4):
         cpu.execute()
     assert ppu.vram_addr == 0x2000
@@ -31,33 +33,34 @@ def test_set_vram_address(nes: NES, cpu: CPU6502, ppu: PPU2c02):
 
 def test_fill_vram_with_data(nes: NES, cpu: CPU6502, ppu: PPU2c02):
     '''
-    002A   A2 00                LDX #$00
-    002C   A0 0F                LDY #$0F
-    002E   A9 00                LDA #$00
-    0030   8D 07 20   L0030     STA $2007
-    0033   CA                   DEX
-    0034   D0 FA                BNE L0030
-    0036   88                   DEY
-    0037   D0 F7                BNE L0030'''
+    002E   A2 00                LDX #$00
+    0030   A0 0F                LDY #$0F
+    0032   A9 00                LDA #$00
+    0034   8D 07 20   L0034     STA $2007
+    0037   CA                   DEX
+    0038   D0 FA                BNE L0034
+    003A   88                   DEY
+    003B   D0 F7                BNE L0034
+    '''
     nes.reset()
-    start_PC = cpu.r_PC
-    cpu.r_PC += 0x2A
+    cpu.r_PC = 0x802E
     ppu.vram_addr = 0x2000
-    while cpu.r_PC != start_PC + 0x39:
+    while cpu.r_PC != 0x803B + 2:
         cpu.execute()
 
 def test_fill_palette_ram_indexes(nes: NES, cpu: CPU6502):
     '''
-    0039   A9 3F                LDA #$3F
-    003B   8D 06 20             STA $2006
-    003E   A9 00                LDA #$00
-    0040   8D 06 20             STA $2006
-    0043   A2 00                LDX #$00
-    0045   BD 78 FF   L0045     LDA $FF78,X
-    0048   8D 07 20             STA $2007
-    004B   E8                   INX
-    004C   E0 20                CPX #$20
-    004E   D0 F5                BNE L0045'''
+    003D   A9 3F                LDA #$3F
+    003F   8D 06 20             STA $2006
+    0042   A9 00                LDA #$00
+    0044   8D 06 20             STA $2006
+    0047   A2 00                LDX #$00
+    0049   BD 78 FF   L0049     LDA $FF78,X
+    004C   8D 07 20             STA $2007
+    004F   E8                   INX
+    0050   E0 20                CPX #$20
+    0052   D0 F5                BNE L0049
+    '''
     nes.reset()
     start_PC = cpu.r_PC
     cpu.r_PC += 0x39
@@ -66,29 +69,29 @@ def test_fill_palette_ram_indexes(nes: NES, cpu: CPU6502):
 
 def test_some_instructions(nes: NES, cpu: CPU6502, ppu: PPU2c02):
     '''
-    0050   A9 C0                LDA #$C0
-    0052   8D 17 40             STA $4017
-    0055   A9 00                LDA #$00
-    0057   8D 15 40             STA $4015
-    005A   A9 78                LDA #$78
-    005C   85 D0                STA $D0
-    005E   A9 FB                LDA #$FB
-    0060   85 D1                STA $D1
-    0062   A9 7F                LDA #$7F
-    0064   85 D3                STA $D3
-    0066   A0 00                LDY #$00
-    0068   8C 06 20             STY $2006
-    006B   8C 06 20             STY $2006
-    006E   A9 00                LDA #$00
-    0070   85 D7                STA $D7
-    0072   A9 07                LDA #$07
-    0074   85 D0                STA $D0
-    0076   A9 C3                LDA #$C3
-    0078   85 D1                STA $D1'''
+    0054   A9 C0                LDA #$C0
+    0056   8D 17 40             STA $4017
+    0059   A9 00                LDA #$00
+    005B   8D 15 40             STA $4015
+    005E   A9 78                LDA #$78
+    0060   85 D0                STA L00D0
+    0062   A9 FB                LDA #$FB
+    0064   85 D1                STA $D1
+    0066   A9 7F                LDA #$7F
+    0068   85 D3                STA $D3
+    006A   A0 00                LDY #$00
+    006C   8C 06 20             STY $2006
+    006F   8C 06 20             STY $2006
+    0072   A9 00                LDA #$00
+    0074   85 D7                STA $D7
+    0076   A9 07                LDA #$07
+    0078   85 D0                STA L00D0
+    007A   A9 C3                LDA #$C3
+    007C   85 D1                STA $D1
+    '''
     nes.reset()
-    start_PC = cpu.r_PC
-    cpu.r_PC += 0x50
-    while cpu.r_PC != start_PC + 0x7A:
+    cpu.r_PC = 0x8054
+    while cpu.r_PC != 0x807C + 2:
         cpu.execute()
     assert ppu.vram_addr == 0
     assert nes.read(0xD0) == 0x07
@@ -97,7 +100,8 @@ def test_some_instructions(nes: NES, cpu: CPU6502, ppu: PPU2c02):
 
 def test_jump_to_somewhere(nes: NES, cpu: CPU6502):
     '''
-    007A   20 A7 C2             JSR $C2A7'''
+    007E   20 A7 C2             JSR $C2A7
+    '''
     nes.reset()
     # start_PC = cpu.r_PC
     cpu.r_PC += 0x7A
@@ -110,50 +114,49 @@ def test_jump_to_somewhere(nes: NES, cpu: CPU6502):
 
 def test_write_more_stuff_to_vram(nes: NES, cpu: CPU6502):
     '''
-    02A3   A9 00                LDA #$00
-    02A5   8D 00 20             STA $2000
-    02A8   8D 01 20             STA $2001
-    02AB   20 ED C2             JSR $C2ED
-    02AE   A9 20                LDA #$20
-    02B0   8D 06 20             STA $2006
-    02B3   A0 00                LDY #$00
-    02B5   8C 06 20             STY $2006
-    02B8   A2 20      L02B8     LDX #$20
-    02BA   B1 D0      L02BA     LDA ($D0),Y
-    02BC   F0 20                BEQ L02DE
-    02BE   C9 FF                CMP #$FF
-    02C0   F0 0D                BEQ L02CF
-    02C2   8D 07 20             STA $2007
-    02C5   C8                   INY
-    02C6   D0 02                BNE L02CA
-    02C8   E6 D1                INC $D1
-    02CA   CA         L02CA     DEX
-    02CB   D0 ED                BNE L02BA
-    02CD   F0 E9                BEQ L02B8
-    02CF   C8         L02CF     INY
-    02D0   D0 02                BNE L02D4
-    02D2   E6 D1                INC $D1
-    02D4   A9 20      L02D4     LDA #$20
-    02D6   8D 07 20             STA $2007
-    02D9   CA                   DEX
-    02DA   D0 F8                BNE L02D4
-    02DC   F0 DA                BEQ L02B8
-    02DE   A9 80      L02DE     LDA #$80
-    02E0   8D 00 20             STA $2000
-    02E3   A9 0E                LDA #$0E
-    02E5   8D 01 20             STA $2001
-    02E8   60                   RTS'''
+    02A7   A9 00                LDA #$00
+    02A9   8D 00 20             STA $2000
+    02AC   8D 01 20             STA $2001
+    02AF   20 ED C2             JSR $C2ED
+    02B2   A9 20                LDA #$20
+    02B4   8D 06 20             STA $2006
+    02B7   A0 00                LDY #$00
+    02B9   8C 06 20             STY $2006
+    02BC   A2 20      L02BC     LDX #$20
+    02BE   B1 D0      L02BE     LDA (L00D0),Y
+    02C0   F0 20                BEQ L02E2
+    02C2   C9 FF                CMP #$FF
+    02C4   F0 0D                BEQ L02D3
+    02C6   8D 07 20             STA $2007
+    02C9   C8                   INY
+    02CA   D0 02                BNE L02CE
+    02CC   E6 D1                INC $D1
+    02CE   CA         L02CE     DEX
+    02CF   D0 ED                BNE L02BE
+    02D1   F0 E9                BEQ L02BC
+    02D3   C8         L02D3     INY
+    02D4   D0 02                BNE L02D8
+    02D6   E6 D1                INC $D1
+    02D8   A9 20      L02D8     LDA #$20
+    02DA   8D 07 20             STA $2007
+    02DD   CA                   DEX
+    02DE   D0 F8                BNE L02D8
+    02E0   F0 DA                BEQ L02BC
+    02E2   A9 80      L02E2     LDA #$80
+    02E4   8D 00 20             STA $2000
+    02E7   A9 0E                LDA #$0E
+    02E9   8D 01 20             STA $2001
+    02EC   60                   RTS
+    '''
     nes.reset()
-    start_PC = cpu.r_PC
-    cpu.r_PC += 0x02A3
+    cpu.r_PC = 0x82A7
     nes.write(0xD0, 0x07)
     nes.write(0xD1, 0xC3)
     nes.write(0xD3, 0x7F)
-    while cpu.r_PC != start_PC + 0x02E8:
+    while cpu.r_PC != 0x82E9 + 3:
         cpu.execute()
 
     print("points to ", nes.read(0xC307))
-    assert 0
 
 
 def test_write_into_vram(nes: NES, cpu: CPU6502, ppu: PPU2c02):
@@ -183,7 +186,8 @@ def test_write_into_vram(nes: NES, cpu: CPU6502, ppu: PPU2c02):
     028D   A5 D2                LDA $D2
     028F   C5 D2      L028F     CMP $D2
     0291   F0 FC                BEQ L028F
-    0293   60                   RTS'''
+    0293   60                   RTS
+    '''
 
 
 def test_run_nestest_instructions(nes: NES, cpu: CPU6502, ppu: PPU2c02):
@@ -192,4 +196,4 @@ def test_run_nestest_instructions(nes: NES, cpu: CPU6502, ppu: PPU2c02):
     # for _ in range(19740):
     for _ in range(2000):
         cpu.execute()
-    assert 0
+    # assert 0

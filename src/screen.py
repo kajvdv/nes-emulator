@@ -35,7 +35,7 @@ class Screen:
         return (*pos, 8 * 16 * TILESIZE, 8 * 16 * TILESIZE)
                     
 
-    def loop(self):
+    def process_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
