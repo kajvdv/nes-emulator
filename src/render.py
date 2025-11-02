@@ -2,7 +2,6 @@
 
 class PatternTile:
     def __init__(self, data: bytes):
-        # print(data)
         assert len(data) == 16, f"Length was {len(data)}"
         self.data = data
 
@@ -100,15 +99,12 @@ class PPU2c02:
             self.vram_addr |= value
             self.vram_addr &= 0x3FFF
             self.r_W = False
-            print(f"VRAM addr set to {self.vram_addr:04X}")
 
     def write_data(self, value: int):
-        print(f"Writing 0x{value:02X} to 0x{self.vram_addr:04X}")
         if 0x2000 <= self.vram_addr < 0x23C0:    
             index = self.vram_addr & 0x1FFF
             col = index % 32
             row = index // 32
-            print(f"{index=:04X} {col=} {row=}")
             tile = self.patterntables[0].tiles[value]
             self.nametables[0].write_tile(tile, col, row)
         self.vram_addr = (self.vram_addr + 1) & 0x3FFF

@@ -25,7 +25,7 @@ def test_set_vram_address(nes: NES, cpu: CPU6502, ppu: PPU2c02):
     002B   8E 06 20             STX $2006
     '''
     nes.reset()
-    cpu.r_PC = 0x8024
+    cpu.r.PC = 0x8024
     for _ in range(4):
         cpu.execute()
     assert ppu.vram_addr == 0x2000
@@ -43,9 +43,9 @@ def test_fill_vram_with_data(nes: NES, cpu: CPU6502, ppu: PPU2c02):
     003B   D0 F7                BNE L0034
     '''
     nes.reset()
-    cpu.r_PC = 0x802E
+    cpu.r.PC = 0x802E
     ppu.vram_addr = 0x2000
-    while cpu.r_PC != 0x803B + 2:
+    while cpu.r.PC != 0x803B + 2:
         cpu.execute()
 
 def test_fill_palette_ram_indexes(nes: NES, cpu: CPU6502):
@@ -62,9 +62,9 @@ def test_fill_palette_ram_indexes(nes: NES, cpu: CPU6502):
     0052   D0 F5                BNE L0049
     '''
     nes.reset()
-    start_PC = cpu.r_PC
-    cpu.r_PC += 0x39
-    while cpu.r_PC != start_PC + 0x50:
+    start_PC = cpu.r.PC
+    cpu.r.PC += 0x39
+    while cpu.r.PC != start_PC + 0x50:
         cpu.execute()
 
 def test_some_instructions(nes: NES, cpu: CPU6502, ppu: PPU2c02):
@@ -90,8 +90,8 @@ def test_some_instructions(nes: NES, cpu: CPU6502, ppu: PPU2c02):
     007C   85 D1                STA $D1
     '''
     nes.reset()
-    cpu.r_PC = 0x8054
-    while cpu.r_PC != 0x807C + 2:
+    cpu.r.PC = 0x8054
+    while cpu.r.PC != 0x807C + 2:
         cpu.execute()
     assert ppu.vram_addr == 0
     assert nes.read(0xD0) == 0x07
@@ -103,14 +103,14 @@ def test_jump_to_somewhere(nes: NES, cpu: CPU6502):
     007E   20 A7 C2             JSR $C2A7
     '''
     nes.reset()
-    # start_PC = cpu.r_PC
-    cpu.r_PC += 0x7A
-    source = cpu.r_PC + 2
-    # while cpu.r_PC != start_PC + 0x7A:
+    # start_PC = cpu.r.PC
+    cpu.r.PC += 0x7A
+    source = cpu.r.PC + 2
+    # while cpu.r.PC != start_PC + 0x7A:
     cpu.execute()
     assert nes.read(0x01FF) == source >> 8
     assert nes.read(0x01FE) == source & 0x00FF
-    assert cpu.r_PC == 0xC2A7
+    assert cpu.r.PC == 0xC2A7
 
 def test_write_more_stuff_to_vram(nes: NES, cpu: CPU6502):
     '''
@@ -149,11 +149,11 @@ def test_write_more_stuff_to_vram(nes: NES, cpu: CPU6502):
     02EC   60                   RTS
     '''
     nes.reset()
-    cpu.r_PC = 0x82A7
+    cpu.r.PC = 0x82A7
     nes.write(0xD0, 0x07)
     nes.write(0xD1, 0xC3)
     nes.write(0xD3, 0x7F)
-    while cpu.r_PC != 0x82E9 + 3:
+    while cpu.r.PC != 0x82E9 + 3:
         cpu.execute()
 
     print("points to ", nes.read(0xC307))
