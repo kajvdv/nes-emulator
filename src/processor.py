@@ -21,6 +21,80 @@ class Operations:
     def __init__(self, r: Registers) -> None:
         self.r = r
 
+    def set_status_flag(self, flag: int, bool: bool):
+        if bool:
+            self.r.P |= (1 << flag)
+        else:
+            self.r.P &= ~(1 << flag)
+
+    def set_zero(self, value: int):
+        value &= 0xFF
+        self.set_status_flag(1, value == 0)
+
+    def set_negative(self, value: int):
+        value &= 0xFF
+        self.set_status_flag(7, bool(value & 0x80))
+
+    def set_interrupt_diable(self, bool: bool):
+        self.set_status_flag(2, bool)
+    
+    def LDA(self, value: int):
+        self.r.A = value
+        self.set_zero(value)
+        self.set_negative(value)
+
+    def LDX(self, value: int):
+        self.r.X = value
+        self.set_zero(value)
+        self.set_negative(value)
+
+    def LDY(self, value: int):
+        self.r.Y = value
+        self.set_zero(value)
+        self.set_negative(value)
+
+    def CMP(self, value: int):
+        result = self.r.A - value
+        self.set_zero(result)
+        self.set_negative(result)
+
+    def CPX(self, value: int):
+        self.set_zero(value)
+        self.set_negative(value)
+
+    def DEX(self):
+        self.r.X = (self.r.X - 1) & 0xFF
+        self.set_negative(self.r.X)
+        self.set_zero(self.r.X)
+
+    def INC(self, value: int):
+        value += 1
+        self.set_zero(value)
+        self.set_negative(value)
+        return value & 0xFF
+
+    def INX(self):
+        self.r.X = (self.r.X + 1) & 0xFF
+        self.set_negative(self.r.X)
+        self.set_zero(self.r.X)
+
+    def DEY(self):
+        self.r.Y = (self.r.Y - 1) & 0xFF
+        self.set_negative(self.r.Y)
+        self.set_zero(self.r.Y)
+
+    def INY(self):
+        self.r.Y = (self.r.Y + 1) & 0xFF
+        self.set_negative(self.r.Y)
+        self.set_zero(self.r.Y)
+
+    def CLD(self):
+        self.set_status_flag(3, False)
+
+    def SEI(self):
+        self.set_interrupt_diable(True)
+
+
 
 class CPU6502:
     def __init__(self, nes: Bus):
@@ -89,43 +163,6 @@ class CPU6502:
     def get_negative(self):
         return self.get_status_flag(7)
     
-    def set_status_flag(self, flag: int, bool: bool):
-        if bool:
-            self.r.P |= (1 << flag)
-        else:
-            self.r.P &= ~(1 << flag)
-
-    def set_zero(self, value: int):
-        value &= 0xFF
-        self.set_status_flag(1, value == 0)
-
-    def set_interrupt_diable(self, bool: bool):
-        self.set_status_flag(2, bool) 
-
-    def set_negative(self, value: int):
-        value &= 0xFF
-        self.set_status_flag(7, bool(value & 0x80))
-
-    def LDA(self, value: int):
-        self.r.A = value
-        self.set_zero(value)
-        self.set_negative(value)
-
-    def LDX(self, value: int):
-        self.r.X = value
-        self.set_zero(value)
-        self.set_negative(value)
-
-    def LDY(self, value: int):
-        self.r.Y = value
-        self.set_zero(value)
-        self.set_negative(value)
-
-    def CMP(self, value: int):
-        result = self.r.A - value
-        self.set_zero(result)
-        self.set_negative(result)
-
     def get_branch_offset(self):
         offset = self.read(self.r.PC)
         self.r.PC += 1
@@ -141,39 +178,38 @@ class CPU6502:
             case 0xE0: # CPX imm
                 value = self.r.X - self.read(self.r.PC)
                 self.r.PC += 1
-                self.set_zero(value)
-                self.set_negative(value)
+                self.ops.CPX(value)
             case 0xC9: # CMP imm
                 value = self.read(self.r.PC)
                 self.r.PC += 1
-                self.CMP(value)
+                self.ops.CMP(value)
             case 0xC5: # CMP zero
                 addr = self.read(self.r.PC)
                 self.r.PC += 1
                 value = self.read(addr)
-                self.CMP(value)
+                self.ops.CMP(value)
             case 0xA5: # LDA zero page
                 addr = self.read(self.r.PC)
                 self.r.PC += 1
                 value = self.zero_page(addr)
-                self.LDA(value)
+                self.ops.LDA(value)
             case 0xA9:
                 value = self.read(self.r.PC)
                 self.r.PC += 1
-                self.LDA(value)
+                self.ops.LDA(value)
             case 0xAD: # LDA abs
                 abs_addr = self.get_absolute_addr()
                 value = self.read(abs_addr)
-                self.LDA(value)
+                self.ops.LDA(value)
             case 0xBD: # LDA abs x
                 abs_addr = self.get_absolute_addr()
                 value = self.read(abs_addr + self.r.X)
-                self.LDA(value)
+                self.ops.LDA(value)
             case 0xB1: # LDA ind y
                 operand = self.read(self.r.PC)
                 self.r.PC += 1
                 value = self.indirect_y(operand)
-                self.LDA(value)
+                self.ops.LDA(value)
             case 0x8D: # STA abs
                 abs_addr = self.get_absolute_addr()
                 self.nes.write(abs_addr, self.r.A)
@@ -190,37 +226,24 @@ class CPU6502:
             case 0xA2: # LDX imm
                 value = self.read(self.r.PC)
                 self.r.PC += 1
-                self.LDX(value)
+                self.ops.LDX(value)
             case 0xA0: # LDY imm
                 value = self.read(self.r.PC)
                 self.r.PC += 1
-                self.LDY(value)
+                self.ops.LDY(value)
             case 0xE6: # INC zero
                 addr = self.read(self.r.PC)
                 self.r.PC += 1
                 value = self.zero_page(addr)
-                value += 1
-                self.set_zero(value)
-                self.set_negative(value)
-                self.write(addr, value & 0xFF)
+                self.write(addr, self.ops.INC(value))
             case 0xCA: # DEX
-                self.r.X = (self.r.X - 1) & 0xFF
-                self.set_negative(self.r.X)
-                self.set_zero(self.r.X)
+                self.ops.DEX()
             case 0xE8: # INX
-                self.r.X = (self.r.X + 1) & 0xFF
-                self.set_negative(self.r.X)
-                self.set_zero(self.r.X)
+                self.ops.INX()
             case 0x88: # DEY
-                self.r.Y = (self.r.Y - 1) & 0xFF
-                # if self.r_Y == 0:
-                #     exit() 
-                self.set_negative(self.r.Y)
-                self.set_zero(self.r.Y)
+                self.ops.DEY()
             case 0xC8: # INY
-                self.r.Y = (self.r.Y + 1) & 0xFF
-                self.set_negative(self.r.Y)
-                self.set_zero(self.r.Y)
+                self.ops.INY()
             case 0x10: # Branch if plus
                 offset = self.get_branch_offset()
                 if not self.get_negative():
@@ -234,9 +257,9 @@ class CPU6502:
                 if not self.get_zero():
                     self.r.PC += offset
             case 0x78:
-                self.set_interrupt_diable(True)
+                self.ops.SEI()
             case 0xD8:
-                self.set_status_flag(3, False)
+                self.ops.CLD()
             case 0x9A:
                 self.r.S = self.r.X
             case 0x20: # JSR

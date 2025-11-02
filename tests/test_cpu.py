@@ -44,7 +44,7 @@ def test_reset_program_counter(nes: NES, cpu: CPU6502):
     
 
 def test_set_interrupt_disable(cpu: CPU6502):
-    cpu.set_interrupt_diable(True)
+    cpu.ops.set_interrupt_diable(True)
     assert cpu.r.P == 0b0000_0100
 
 
@@ -64,7 +64,7 @@ def test_cpu_read_ppu_status(nes: NES, cpu: CPU6502, ppu: PPU2c02):
 
 
 def test_LDA_set_flags(nes: NES, cpu: CPU6502):
-    cpu.LDA(0x80)
+    cpu.ops.LDA(0x80)
     assert cpu.get_status_flag(7) == True
 
 
