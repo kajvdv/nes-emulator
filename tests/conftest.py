@@ -6,7 +6,13 @@ from screen import Screen
 
 @pytest.fixture(name="cartridge")
 def cartridge_fixture():
-    cartridge = Cartridge(b'NES\x1A\x01\x01' + bytes(1024*100))
+    header = b'NES\x1A\x01\x01' + bytes(10)
+    prg_rom = bytes(16 * 1024)
+
+    test_tile = b"\x80\x80\x00\x00\x00\x00\x00\x00\x80\x80\x00\x00\x00\x00\x00\x00"
+    chr_rom = test_tile + bytes(8 * 1024 - len(test_tile))
+
+    cartridge = Cartridge(header + prg_rom + chr_rom)
     return cartridge
 
 @pytest.fixture(name='nes')

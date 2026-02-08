@@ -1,16 +1,24 @@
-from time import sleep
+from pathlib import Path
 
+from PIL import Image
 from cartridge import Cartridge
-from screen import Screen
 from render import PatternTile, NameTable, Palette, PPU2c02
 from nes import NES
 
+DATA_DIR = Path("data")
+DATA_DIR.mkdir(exist_ok=True)
 
 
-def test_render_pattern_table(screen: Screen, cartridge: Cartridge):
-    table = cartridge.get_pattern_table(index=0)
-    screen.render_pattern_table(table, (0, 0))
-    screen.update()
+def save_frame_as_image(frame: list[list[tuple[int, int, int]]], filename: str):
+    pixels = [pixel for row in frame for pixel in row]
+    img = Image.new('RGB', (256, 240))
+    img.putdata(pixels)
+    img.save(DATA_DIR / filename)
+
+
+
+def test_render_pattern_table():
+    pass
 
 
 def test_combine_pattern_table_planes():
@@ -51,28 +59,50 @@ def test_write_to_nametable():
     assert frame[0][0] == (255, 255, 255)
     assert frame[1][0] == (255, 255, 255)
 
-def test_draw_pixel_on_screen(screen: Screen):
-    screen.draw_pixel((255, 255, 255), 0, 0)
-    screen.update()
-    sleep(1)
-
-
-def test_render_nametable(screen: Screen, nes: NES, ppu: PPU2c02):
+def test_render_nametable(nes: NES, ppu: PPU2c02):
     ppu.write_tile(n_x=0, n_y=0, pattern_index=3)
     ppu.write_tile(n_x=10, n_y=10, pattern_index=7)
     ppu.write_tile(n_x=31, n_y=29, pattern_index=7)
     frame = nes.resolve_frame()
-    screen.draw_frame(frame)
-    screen.update()
-    screen.update()
-    sleep(2)
+    save_frame_as_image(frame, "test_render_nametable.png")
+    # TODO: put assertions
 
 
-def test_write_to_vram(screen: Screen, nes: NES, ppu: PPU2c02):
+def test_write_to_vram(nes: NES, ppu: PPU2c02):
     ppu.write_addr(0x10)
     ppu.write_addr(0x01)
-    ppu.write_data(5)
+    ppu.write_data(255)
     frame = nes.resolve_frame()
-    screen.draw_frame(frame)
-    screen.update()
-    sleep(1)
+    save_frame_as_image(frame, "test_write_to_vram.png")
+    # TODO: put assertions
+
+
+def test_ppu_generates_pixels(ppu: PPU2c02):
+    ppu.write_tile(n_x=0, n_y=0, pattern_index=0)
+
+    pixel_0_0 = ppu.get_next_pixel()
+    assert pixel_0_0 == (255, 255, 255), f"Expected white pixel at (0,0), got {pixel_0_0}"
+
+    for x in range(1, 8):
+        pixel = ppu.get_next_pixel()  
+        assert pixel == (0, 0, 0), f"Expected black pixel at ({x},0), got {pixel}"
+
+    for x in range(8, 256):
+        pixel = ppu.get_next_pixel()  
+        assert pixel == (0, 0, 0), f"Expected black pixel at ({x},0)"
+
+    pixel_0_1 = ppu.get_next_pixel()
+    assert pixel_0_1 == (255, 255, 255), f"Expected white pixel at (0,1), got {pixel_0_1}"
+
+
+def test_generate_image_from_ppu(ppu: PPU2c02):
+    ppu.write_tile(n_x=0, n_y=0, pattern_index=0)
+
+    frame = []
+    for _ in range(240):
+        row = []
+        for _ in range(256):
+            row.append(ppu.get_next_pixel())
+        frame.append(row)
+
+    save_frame_as_image(frame, "test_generate_image_from_ppu.png")

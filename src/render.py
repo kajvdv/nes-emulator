@@ -73,6 +73,8 @@ class PPU2c02:
         self.status = 0
         self.control = 0
         self.mask = 0
+        self.current_x = 0
+        self.current_y = 0
 
     def get_status(self):
         self.r_W = False
@@ -111,3 +113,26 @@ class PPU2c02:
 
     def read_vram(self, addr: int):
         ...
+
+    def get_next_pixel(self) -> tuple[int, int, int]:
+        tile_x = self.current_x // 8
+        tile_y = self.current_y // 8
+
+        tile = self.nametables[0].data[tile_y][tile_x]
+
+        pixel_x = self.current_x % 8
+        pixel_y = self.current_y % 8
+
+        color_indexes = tile.get_color_indexes()
+        color_index = color_indexes[pixel_y][pixel_x]
+
+        color = self.palette.get_color(color_index)
+
+        self.current_x += 1
+        if self.current_x >= 256:
+            self.current_x = 0
+            self.current_y += 1
+            if self.current_y >= 240:
+                self.current_y = 0
+
+        return color

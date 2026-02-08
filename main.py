@@ -18,7 +18,7 @@ def main():
     screen.update()
     # for _ in range(19740):
     while True:
-        screen.loop()
+        screen.process_events()
         for _ in range(200):
             nes.cpu.execute()
         frame = nes.resolve_frame()
