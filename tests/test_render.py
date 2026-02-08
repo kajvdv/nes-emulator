@@ -69,9 +69,10 @@ def test_render_nametable(nes: NES, ppu: PPU2c02):
 
 
 def test_write_to_vram(nes: NES, ppu: PPU2c02):
-    ppu.write_addr(0x10)
-    ppu.write_addr(0x01)
-    ppu.write_data(255)
+    for i in range(255*240):
+        ppu.write_addr(0x20)
+        ppu.write_addr(i)
+        ppu.write_data(0)
     frame = nes.resolve_frame()
     save_frame_as_image(frame, "test_write_to_vram.png")
     # TODO: put assertions
