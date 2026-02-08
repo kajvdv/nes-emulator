@@ -1,8 +1,10 @@
 import pytest
 
 from cartridge import Cartridge
-from nes import NES
+from nes import NES, FrameListener
 from screen import Screen
+
+from mocks import MockScreen
 
 @pytest.fixture(name="cartridge")
 def cartridge_fixture():
@@ -15,9 +17,15 @@ def cartridge_fixture():
     cartridge = Cartridge(header + prg_rom + chr_rom)
     return cartridge
 
+
+@pytest.fixture(name='screen', scope='function')
+def screen_fixture():
+    screen = MockScreen()
+    yield screen
+
 @pytest.fixture(name='nes')
-def nes_fixture(cartridge: Cartridge):
-    nes = NES(cartridge)
+def nes_fixture(cartridge: Cartridge, screen: FrameListener):
+    nes = NES(cartridge, screen)
     return nes
 
 
@@ -28,9 +36,3 @@ def cpu_fixture(nes: NES):
 @pytest.fixture(name="ppu")
 def ppu_fixture(nes: NES):
     return nes.ppu
-
-
-@pytest.fixture(name='screen', scope='function')
-def screen_fixture():
-    screen = Screen()
-    yield screen

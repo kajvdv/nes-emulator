@@ -47,10 +47,8 @@ class Screen:
     def draw_pixel(self, rgb_value: tuple[int, int, int], x: int, y: int):
         self.screen.fill(rgb_value, (x*SCALE, y*SCALE, SCALE, SCALE))
 
-    def display(self, frame: list[list[tuple[int, int, int]]]) -> None:
-        # TODO: convert frame type to bytes
-        buf = bytes(c for row in frame for pixel in row for c in pixel)
-        surface = pygame.image.frombuffer(buf, (256, 240), 'RGB')
+    def display(self, frame: bytes) -> None:
+        surface = pygame.image.frombuffer(frame, (256, 240), 'RGB')
         scaled = pygame.transform.scale(surface, self.screen.get_size())
         self.screen.blit(scaled, (0, 0))
         pygame.display.flip()

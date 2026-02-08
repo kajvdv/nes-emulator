@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Protocol, Literal
 from dataclasses import dataclass, field
 
 class Bus(Protocol):
@@ -26,6 +26,10 @@ class Operations:
             self.r.P |= (1 << flag)
         else:
             self.r.P &= ~(1 << flag)
+
+    def set_carry(self, value: int):
+        value &= 0xFF
+        self.set_status_flag(0, bool(value & 0xFF00))
 
     def set_zero(self, value: int):
         value &= 0xFF
@@ -94,6 +98,30 @@ class Operations:
     def SEI(self):
         self.set_interrupt_diable(True)
 
+    def LSR(self, value):
+        value = (value >> 1) & 0xFF
+        self.set_negative(value)
+        self.set_zero(value)
+        self.set_carry(value)
+        return value
+
+    def ROL(self, value):
+        value = (value << 1) & 0xFF
+        self.set_negative(value)
+        self.set_zero(value)
+        self.set_carry(value)
+        return value 
+    
+    def EOR(self, value):
+        self.r.A = (self.r.A ^ value)
+        self.set_negative(self.r.A)
+        self.set_zero(self.r.A)
+
+    def AND(self, value):
+        self.r.A = (self.r.A ^ value)
+        self.set_negative(self.r.A)
+        self.set_zero(self.r.A)
+
 
 
 class CPU6502:
@@ -132,6 +160,11 @@ class CPU6502:
 
     def zero_page(self, addr: int):
         return self.nes.read(addr & 0xFF)
+
+    def get_zero_addr(self):
+        addr = self.read(self.r.PC)
+        self.r.PC += 1
+        return addr
     
     def get_absolute_addr(self):
         lo_byte = self.read(self.r.PC)
@@ -156,6 +189,18 @@ class CPU6502:
 
     def get_status_flag(self, flag: int):
         return bool(self.r.P & (1 << flag))
+    
+    def get_flag(self, flag: Literal["N","V","1","B","D","I","Z","C"]):
+        enum = {"N": 7,"V": 6,"1": 5,"B": 4,"D": 3,"I": 2,"Z": 1,"C": 0}
+        return bool(self.r.P & (1 << enum[flag]))
+    
+    def set_flag(self, flag: Literal["N","V","1","B","D","I","Z","C"], value: bool):
+        enum = {"N": 7,"V": 6,"1": 5,"B": 4,"D": 3,"I": 2,"Z": 1,"C": 0}
+        if value:
+            self.r.P |= (1 << enum[flag])
+        else:
+            self.r.P &= ~(1 << enum[flag])
+
 
     def get_zero(self):
         return self.get_status_flag(1)
@@ -170,6 +215,11 @@ class CPU6502:
             # If the signed bit is set, the the value should be negative.
             offset = offset - 256
         return offset
+    
+    def PLA(self):
+        self.r.A = self.pull()
+        self.set_flag("Z", self.r.A == 0)
+        return 4
 
     def execute(self) -> int:
         opcode = self.read(self.r.PC)
@@ -231,6 +281,9 @@ class CPU6502:
                 abs_addr = self.get_absolute_addr()
                 self.nes.write(abs_addr, self.r.X)
                 return 4
+            case 0x86: # STX zero
+                self.nes.write(self.get_zero_addr(), self.r.X)
+                return 4
             case 0x8C: # STY abs
                 abs_addr = self.get_absolute_addr()
                 self.nes.write(abs_addr, self.r.Y)
@@ -281,6 +334,33 @@ class CPU6502:
                     self.r.PC += offset
                     return 3
                 return 2
+            case 0x4A: # LSR
+                self.ops.LSR(self.r.A)
+                return 2
+            case 0x26: # ROL
+                addr = self.read(self.r.PC)
+                self.r.PC += 1
+                value = self.zero_page(addr)
+                self.write(addr, self.ops.ROL(value))
+                return 5
+            case 0x45:
+                addr = self.read(self.r.PC)
+                self.r.PC += 1
+                value = self.zero_page(addr)
+                self.ops.EOR(value)
+                return 3
+            case 0x25:
+                addr = self.read(self.r.PC)
+                self.r.PC += 1
+                value = self.zero_page(addr)
+                self.ops.AND(value)
+                return 3
+            case 0x48: # PHA
+                self.push(self.r.A)
+                return 3
+            case 0x68: # PLA
+                self.r.A = self.pull()
+                return 4
             case 0x78: # SEI
                 self.ops.SEI()
                 return 2
@@ -289,6 +369,12 @@ class CPU6502:
                 return 2
             case 0x9A: # TXS
                 self.r.S = self.r.X
+                return 2
+            case 0x8A: # TXA
+                self.r.A = self.r.X
+                return 2
+            case 0xAA: # TAX
+                self.r.X = self.r.A
                 return 2
             case 0x20: # JSR
                 abs_addr = self.get_absolute_addr()

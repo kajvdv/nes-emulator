@@ -4,10 +4,13 @@
 
 import pytest
 
-from nes import NES
+from nes import NES, FrameListener
 from processor import CPU6502
 from cartridge import Cartridge
 from render import PPU2c02
+
+from utils import save_frame_as_image
+from mocks import MockScreen
 
 
 @pytest.fixture(name="cartridge") # Overriding cartridge fixture in conftest
@@ -15,7 +18,30 @@ def cartridge_fixture():
     with open('roms/nestest.nes', 'rb') as rom:
         cartridge = Cartridge(rom.read())
     return cartridge
+
+
+@pytest.fixture(autouse=True)
+def menu(nes: NES, screen: MockScreen):
+    nes.reset()
+    while screen.render_count < 4:
+        nes.execute()
+
+
+def test_displaying_menu(screen: MockScreen):
+    save_frame_as_image(screen.frame, 256, 240, "test_displaying_menu.png")
     
+
+def test_receive_user_input(nes: NES, screen: MockScreen):
+    lo_pc = nes.read(0xFFFA)
+    hi_pc = nes.read(0xFFFB)
+    pc = (hi_pc << 8) | lo_pc
+    print(f"pc is {(pc):04X}")
+    nes.cpu.r.PC = pc
+    while screen.render_count < 6:
+        nes.execute()
+    save_frame_as_image(screen.frame, 256, 240, "test_receive_user_input.png")
+    assert 0
+
 
 def test_set_vram_address(nes: NES, cpu: CPU6502, ppu: PPU2c02):
     '''

@@ -5,11 +5,13 @@ from render import PPU2c02
 from nes import NES
 
 
-
-
+@pytest.fixture(name='screen', scope='function')
+def screen_fixture():
+    return None
+    
 pytest.fixture(name="cpu")
 def cpu_fixture(nes: NES):
-    return CPU6502(nes)
+    return nes.cpu
 
 def test_load_zero_page(nes: NES, cpu: CPU6502):
     nes.write(0x0A, 1)
@@ -111,3 +113,23 @@ def test_indirect_y_addressing_mode(nes: NES, cpu: CPU6502):
     nes.write(0x21, 0x06)
     nes.write(0x0605, 0x0A)
     assert cpu.indirect_y(0x20) == 0x0A
+
+@pytest.mark.parametrize("value", [10, 0, 0x80])
+def test_PLA(nes: NES, cpu: CPU6502, value):
+    """PLA - Pull A
+    SP = SP + 1
+    A = ($0100 + SP)
+
+    PLA increments the stack pointer and then loads the value at that stack position into A.
+
+    Flag	New value
+    Z - Zero	result == 0
+    N - Negative	result bit 7
+    Addressing mode	Opcode	Bytes	Cycles
+    Implied	$68	1	4"""
+    cpu.push(value)
+    tick_count = cpu.PLA()
+    assert tick_count == 4
+    assert cpu.r.A == value
+    assert cpu.get_flag("Z") != cpu.r.A
+    assert cpu.get_flag("N") == (cpu.r.A & 0x80)
