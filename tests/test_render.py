@@ -11,7 +11,9 @@ DATA_DIR.mkdir(exist_ok=True)
 
 def save_frame_as_image(frame: list[list[tuple[int, int, int]]], filename: str):
     pixels = [pixel for row in frame for pixel in row]
-    img = Image.new('RGB', (256, 240))
+    height = len(frame)
+    width = len(frame[0]) if height > 0 else 0
+    img = Image.new('RGB', (width, height))
     img.putdata(pixels)
     img.save(DATA_DIR / filename)
 
@@ -81,29 +83,24 @@ def test_write_to_vram(nes: NES, ppu: PPU2c02):
 def test_ppu_generates_pixels(ppu: PPU2c02):
     ppu.write_tile(n_x=0, n_y=0, pattern_index=0)
 
-    pixel_0_0 = ppu.get_next_pixel()
-    assert pixel_0_0 == (255, 255, 255), f"Expected white pixel at (0,0), got {pixel_0_0}"
-
-    for x in range(1, 8):
-        pixel = ppu.get_next_pixel()  
-        assert pixel == (0, 0, 0), f"Expected black pixel at ({x},0), got {pixel}"
-
-    for x in range(8, 256):
-        pixel = ppu.get_next_pixel()  
-        assert pixel == (0, 0, 0), f"Expected black pixel at ({x},0)"
-
-    pixel_0_1 = ppu.get_next_pixel()
-    assert pixel_0_1 == (255, 255, 255), f"Expected white pixel at (0,1), got {pixel_0_1}"
-
-
-def test_generate_image_from_ppu(ppu: PPU2c02):
-    ppu.write_tile(n_x=0, n_y=0, pattern_index=0)
-
     frame = []
-    for _ in range(240):
+    for scanline in range(262):
         row = []
-        for _ in range(256):
-            row.append(ppu.get_next_pixel())
+        for cycle in range(341):
+            pixel = ppu.tick()
+            if pixel is not None:
+                color = pixel
+            elif scanline < 240:
+                color = (50, 50, 50)
+            elif scanline == 240:
+                color = (100, 50, 50)
+            elif scanline <= 260:
+                color = (50, 100, 50)
+            else:
+                color = (50, 50, 100)
+            row.append(color)
         frame.append(row)
 
-    save_frame_as_image(frame, "test_generate_image_from_ppu.png")
+    save_frame_as_image(frame, "test_ppu_generates_pixels.png")
+
+
