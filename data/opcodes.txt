@@ -1,0 +1,151 @@
+#Immediate	    $69	2	2
+Zero Page	    $65	2	3
+Zero Page,X	    $75	2	4
+Absolute	    $6D	3	4
+Absolute,X	    $7D	3	4 (5 if page crossed)
+Absolute,Y	    $79	3	4 (5 if page crossed)
+(Indirect,X)	$61	2	6
+(Indirect),Y	$71	2	5 (6 if page crossed)
+#Immediate	    $29	2	2
+Zero Page	    $25	2	3
+Zero Page,X	    $35	2	4
+Absolute	    $2D	3	4
+Absolute,X	    $3D	3	4 (5 if page crossed)
+Absolute,Y	    $39	3	4 (5 if page crossed)
+(Indirect,X)	$21	2	6
+(Indirect),Y	$31	2	5 (6 if page crossed)
+Accumulator	    $0A	1	2
+Zero Page	    $06	2	5
+Zero Page,X	    $16	2	6
+Absolute	    $0E	3	6
+Absolute,X	    $1E	3	7
+Relative	    $90	2	2 (3 if branch taken, 4 if page crossed)*
+Relative	    $B0	2	2 (3 if branch taken, 4 if page crossed)*
+Relative	    $F0	2	2 (3 if branch taken, 4 if page crossed)*
+Zero page	    $24	2	3
+Absolute	    $2C	3	4
+Relative	    $30	2	2 (3 if branch taken, 4 if page crossed)*
+Relative    	$D0	2	2 (3 if branch taken, 4 if page crossed)*
+Relative    	$10	2	2 (3 if branch taken, 4 if page crossed)*
+Implied     	$00	1	7
+#Immediate	    $00	2	7
+Relative    	$50	2	2 (3 if branch taken, 4 if page crossed)*
+Relative    	$70	2	2 (3 if branch taken, 4 if page crossed)*
+Implied	        $18	1	2
+Implied     	$D8	1	2
+Implied	        $58	1	2
+Implied	        $B8	1	2
+#Immediate	    $C9	2	2
+Zero Page	    $C5	2	3
+Zero Page,X	    $D5	2	4
+Absolute	    $CD	3	4
+Absolute,X	    $DD	3	4 (5 if page crossed)
+Absolute,Y	    $D9	3	4 (5 if page crossed)
+(Indirect,X)	$C1	2	6
+(Indirect),Y	$D1	2	5 (6 if page crossed)
+#Immediate	    $E0	2	2
+Zero Page	    $E4	2	3
+Absolute	    $EC	3	4
+#Immediate	    $C0	2	2
+Zero Page	    $C4	2	3
+Absolute	    $CC	3	4
+Zero Page	    $C6	2	5
+Zero Page,X	    $D6	2	6
+Absolute	    $CE	3	6
+Absolute,X	    $DE	3	7
+Implied	        $CA	1	2
+Implied	        $88	1	2
+#Immediate	    $49	2	2
+Zero Page	    $45	2	3
+Zero Page,X	    $55	2	4
+Absolute	    $4D	3	4
+Absolute,X	    $5D	3	4 (5 if page crossed)
+Absolute,Y	    $59	3	4 (5 if page crossed)
+(Indirect,X)	$41	2	6
+(Indirect),Y	$51	2	5 (6 if page crossed)
+Zero Page	    $E6	2	5
+Zero Page,X	    $F6	2	6
+Absolute	    $EE	3	6
+Absolute,X	    $FE	3	7
+Implied	        $E8	1	2
+Implied	        $C8	1	2
+Absolute	    $4C	3	3
+(Indirect)	    $6C	3	5
+Absolute	    $20	3	6
+#Immediate	    $A9	2	2
+Zero Page	    $A5	2	3
+Zero Page,X	    $B5	2	4
+Absolute	    $AD	3	4
+Absolute,X	    $BD	3	4 (5 if page crossed)
+Absolute,Y	    $B9	3	4 (5 if page crossed)
+(Indirect,X)	$A1	2	6
+(Indirect),Y	$B1	2	5 (6 if page crossed)
+#Immediate	    $A2	2	2
+Zero Page	    $A6	2	3
+Zero Page,Y	    $B6	2	4
+Absolute	    $AE	3	4
+Absolute,Y	    $BE	3	4 (5 if page crossed)
+#Immediate	    $A0	2	2
+Zero Page	    $A4	2	3
+Zero Page,X	    $B4	2	4
+Absolute	    $AC	3	4
+Absolute,X	    $BC	3	4 (5 if page crossed)
+Accumulator	    $4A	1	2
+Zero Page	    $46	2	5
+Zero Page,X	    $56	2	6
+Absolute	    $4E	3	6
+Absolute,X	    $5E	3	7
+#Immediate	    $09	2	2
+Zero Page	    $05	2	3
+Zero Page,X	    $15	2	4
+Absolute	    $0D	3	4
+Absolute,X	    $1D	3	4 (5 if page crossed)
+Absolute,Y	    $19	3	4 (5 if page crossed)
+(Indirect,X)	$01	2	6
+(Indirect),Y	$11	2	5 (6 if page crossed)
+Implied	        $48	1	3
+Implied	        $08	1	3
+Implied	        $68	1	4
+Implied	        $28	1	4
+Accumulator	    $2A	1	2
+Zero Page	    $26	2	5
+Zero Page,X	    $36	2	6
+Absolute	    $2E	3	6
+Absolute,X	    $3E	3	7
+Accumulator	    $6A	1	2
+Zero Page	    $66	2	5
+Zero Page,X	    $76	2	6
+Absolute	    $6E	3	6
+Absolute,X	    $7E	3	7
+Implied	        $40	1	6
+Implied	        $60	1	6
+#Immediate	    $E9	2	2
+Zero Page	    $E5	2	3
+Zero Page,X	    $F5	2	4
+Absolute	    $ED	3	4
+Absolute,X	    $FD	3	4 (5 if page crossed)
+Absolute,Y	    $F9	3	4 (5 if page crossed)
+(Indirect,X)	$E1	2	6
+(Indirect),Y	$F1	2	5 (6 if page crossed)
+Implied	        $38	1	2
+Implied	        $F8	1	2
+Implied	        $78	1	2
+Zero Page	    $85	2	3
+Zero Page,X	    $95	2	4
+Absolute	    $8D	3	4
+Absolute,X	    $9D	3	5
+Absolute,Y	    $99	3	5
+(Indirect,X)	$81	2	6
+(Indirect),Y	$91	2	6
+Zero Page	    $86	2	3
+Zero Page,Y	    $96	2	4
+Absolute	    $8E	3	4
+Zero Page	    $84	2	3
+Zero Page,X	    $94	2	4
+Absolute	    $8C	3	4
+Implied	        $AA	1	2
+Implied	        $A8	1	2
+Implied	        $BA	1	2
+Implied	        $8A	1	2
+Implied	        $9A	1	2
+Implied	        $98	1	2
