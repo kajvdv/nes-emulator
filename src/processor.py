@@ -171,7 +171,7 @@ class CPU6502:
             offset = offset - 256
         return offset
 
-    def execute(self):
+    def execute(self) -> int:
         opcode = self.read(self.r.PC)
         self.r.PC += 1
         match opcode:
@@ -179,99 +179,129 @@ class CPU6502:
                 value = self.r.X - self.read(self.r.PC)
                 self.r.PC += 1
                 self.ops.CPX(value)
+                return 2
             case 0xC9: # CMP imm
                 value = self.read(self.r.PC)
                 self.r.PC += 1
                 self.ops.CMP(value)
+                return 2
             case 0xC5: # CMP zero
                 addr = self.read(self.r.PC)
                 self.r.PC += 1
                 value = self.read(addr)
                 self.ops.CMP(value)
+                return 3
             case 0xA5: # LDA zero page
                 addr = self.read(self.r.PC)
                 self.r.PC += 1
                 value = self.zero_page(addr)
                 self.ops.LDA(value)
-            case 0xA9:
+                return 3
+            case 0xA9: # LDA imm
                 value = self.read(self.r.PC)
                 self.r.PC += 1
                 self.ops.LDA(value)
+                return 2
             case 0xAD: # LDA abs
                 abs_addr = self.get_absolute_addr()
                 value = self.read(abs_addr)
                 self.ops.LDA(value)
+                return 4
             case 0xBD: # LDA abs x
                 abs_addr = self.get_absolute_addr()
                 value = self.read(abs_addr + self.r.X)
                 self.ops.LDA(value)
+                return 4
             case 0xB1: # LDA ind y
                 operand = self.read(self.r.PC)
                 self.r.PC += 1
                 value = self.indirect_y(operand)
                 self.ops.LDA(value)
+                return 5
             case 0x8D: # STA abs
                 abs_addr = self.get_absolute_addr()
                 self.nes.write(abs_addr, self.r.A)
+                return 4
             case 0x85: # STA zero
                 addr = self.read(self.r.PC)
                 self.r.PC += 1
                 self.write(addr, self.r.A)
+                return 3
             case 0x8E: # STX abs
                 abs_addr = self.get_absolute_addr()
                 self.nes.write(abs_addr, self.r.X)
+                return 4
             case 0x8C: # STY abs
                 abs_addr = self.get_absolute_addr()
                 self.nes.write(abs_addr, self.r.Y)
+                return 4
             case 0xA2: # LDX imm
                 value = self.read(self.r.PC)
                 self.r.PC += 1
                 self.ops.LDX(value)
+                return 2
             case 0xA0: # LDY imm
                 value = self.read(self.r.PC)
                 self.r.PC += 1
                 self.ops.LDY(value)
+                return 2
             case 0xE6: # INC zero
                 addr = self.read(self.r.PC)
                 self.r.PC += 1
                 value = self.zero_page(addr)
                 self.write(addr, self.ops.INC(value))
+                return 5
             case 0xCA: # DEX
                 self.ops.DEX()
+                return 2
             case 0xE8: # INX
                 self.ops.INX()
+                return 2
             case 0x88: # DEY
                 self.ops.DEY()
+                return 2
             case 0xC8: # INY
                 self.ops.INY()
+                return 2
             case 0x10: # Branch if plus
                 offset = self.get_branch_offset()
                 if not self.get_negative():
                     self.r.PC += offset
+                    return 3
+                return 2
             case 0xF0: # Branch if equal
                 offset = self.get_branch_offset()
                 if self.get_zero():
                     self.r.PC += offset
+                    return 3
+                return 2
             case 0xD0: # Branch if not equal
                 offset = self.get_branch_offset()
                 if not self.get_zero():
                     self.r.PC += offset
-            case 0x78:
+                    return 3
+                return 2
+            case 0x78: # SEI
                 self.ops.SEI()
-            case 0xD8:
+                return 2
+            case 0xD8: # CLD
                 self.ops.CLD()
-            case 0x9A:
+                return 2
+            case 0x9A: # TXS
                 self.r.S = self.r.X
+                return 2
             case 0x20: # JSR
                 abs_addr = self.get_absolute_addr()
                 return_addr = self.r.PC - 1
                 self.push((return_addr >> 8) & 0xFF)
                 self.push(return_addr & 0x00FF)
                 self.r.PC = abs_addr
+                return 6
             case 0x60: # RTS
                 lo_byte = self.pull()
                 hi_byte = self.pull()
                 addr = (hi_byte << 8) | lo_byte
                 self.r.PC = addr + 1
+                return 6
             case _:
                 raise Exception(f"Opcode 0x{opcode:02X} is not implemented")

@@ -1,3 +1,4 @@
+from typing import Protocol
 # from pathlib import Path
 
 from cartridge import Cartridge
@@ -5,16 +6,35 @@ from processor import CPU6502
 from render import PPU2c02
 
 
+class FrameListener(Protocol):
+    def display(self, frame: list[list[tuple[int, int, int]]]) -> None:
+        ...
+
+
+FRAME_PPU_CYCLES = 341 * 262  # 89342 PPU cycles per frame
+
+
 class NES:
-    def __init__(self, cartridge: Cartridge):
-        # self.cartridge = Cartridge(rom_file)
+    def __init__(self, cartridge: Cartridge, listener: FrameListener):
         self.cartridge = cartridge
         self.ppu = PPU2c02(patterntables=(self.cartridge.get_pattern_table(0), self.cartridge.get_pattern_table(1)))
         self.cpu = CPU6502(self)
         self.ram = [0 for _ in range(2 * 1024)]
+        self.listener = listener
+        self.cycle_count = 0
 
     def reset(self):
         self.cpu.reset()
+
+    def update(self):
+        ticks = self.cpu.execute()
+        ppu_ticks = ticks * 3
+        for _ in range(ppu_ticks):
+            self.ppu.tick()
+        self.cycle_count += ppu_ticks
+        if self.cycle_count >= FRAME_PPU_CYCLES:
+            self.cycle_count -= FRAME_PPU_CYCLES
+            self.listener.display(self.resolve_frame())
 
     def read(self, addr: int) -> int:
         assert 0 <= addr <= 0xFFFF
