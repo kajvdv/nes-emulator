@@ -15,31 +15,34 @@ FRAME_PPU_CYCLES = 341 * 262  # 89342 PPU cycles per frame
 
 
 class NES:
-    def __init__(self, cartridge: Cartridge, listener: FrameListener):
+    def __init__(self, cartridge: Cartridge):
         self.cartridge = cartridge
         self.ppu = PPU2c02(patterntables=(self.cartridge.get_pattern_table(0), self.cartridge.get_pattern_table(1)))
         self.cpu = CPU6502(self)
         self.ram = [0 for _ in range(2 * 1024)]
-        self.listener = listener
         self.cycle_count = 0
         self.frame = []
 
     def reset(self):
         self.cpu.reset()
 
-    def execute(self):
-        ticks = self.cpu.execute()
-        ppu_ticks = ticks * 3
-        for _ in range(ppu_ticks):
-            pixel = self.ppu.tick()
-            if pixel:
-                for c in pixel:
-                    self.frame.append(c)
-            self.cycle_count += 1
-            if self.cycle_count == FRAME_PPU_CYCLES:
-                self.listener.display(bytes(self.frame))
-                self.cycle_count = 0
-                self.frame = []
+    def get_next_frame(self) -> bytes:
+        new_frame = None
+        while not new_frame:
+            ticks = self.cpu.execute()
+            ppu_ticks = ticks * 3
+            for _ in range(ppu_ticks):
+                pixel = self.ppu.tick()
+                if pixel:
+                    for c in pixel:
+                        self.frame.append(c)
+                self.cycle_count += 1
+                if self.cycle_count == FRAME_PPU_CYCLES:
+                    # self.listener.display(bytes(self.frame))
+                    new_frame = bytes(self.frame)
+                    self.cycle_count = 0
+                    self.frame = []
+        return new_frame
 
     def read(self, addr: int) -> int:
         assert 0 <= addr <= 0xFFFF

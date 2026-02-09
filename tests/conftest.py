@@ -24,8 +24,8 @@ def screen_fixture():
     yield screen
 
 @pytest.fixture(name='nes')
-def nes_fixture(cartridge: Cartridge, screen: FrameListener):
-    nes = NES(cartridge, screen)
+def nes_fixture(cartridge: Cartridge):
+    nes = NES(cartridge)
     return nes
 
 

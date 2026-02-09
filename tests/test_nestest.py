@@ -21,14 +21,18 @@ def cartridge_fixture():
 
 
 @pytest.fixture(autouse=True)
-def menu(nes: NES, screen: MockScreen):
+def menu_frame(nes: NES, screen: MockScreen):
     nes.reset()
-    while screen.render_count < 4:
-        nes.execute()
+    # while screen.render_count < 4:
+    #     nes.execute()
+    nes.get_next_frame()
+    nes.get_next_frame()
+    nes.get_next_frame()
+    return nes.get_next_frame()
 
 
-def test_displaying_menu(screen: MockScreen):
-    save_frame_as_image(screen.frame, 256, 240, "test_displaying_menu.png")
+def test_displaying_menu(menu_frame):
+    save_frame_as_image(menu_frame, 256, 240, "test_displaying_menu.png")
     
 
 def test_receive_user_input(nes: NES, screen: MockScreen):
@@ -37,10 +41,10 @@ def test_receive_user_input(nes: NES, screen: MockScreen):
     pc = (hi_pc << 8) | lo_pc
     print(f"pc is {(pc):04X}")
     nes.cpu.r.PC = pc
-    while screen.render_count < 6:
-        nes.execute()
-    save_frame_as_image(screen.frame, 256, 240, "test_receive_user_input.png")
-    assert 0
+    frame = nes.get_next_frame()
+    for _ in range(10):
+        frame = nes.get_next_frame()
+    save_frame_as_image(frame, 256, 240, "test_receive_user_input.png")
 
 
 def test_set_vram_address(nes: NES, cpu: CPU6502, ppu: PPU2c02):
