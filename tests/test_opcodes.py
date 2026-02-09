@@ -7,21 +7,22 @@ with open("data/opcodes.txt") as file:
 
 params = []
 for line in codes:
-    line = line.replace("\t\t", "\t")
-    line = line.replace("\t\t\t", "\t")
-    addr_mode, opcode, size, cycles = line.split("\t")
+    mnemonics, addr_mode, opcode, size, cycles = line.split("|")
     params.append(pytest.param(
+        mnemonics.strip(),
         addr_mode.strip(),
         int(opcode.strip()[1:], 16),
-        int(size),
-        int(cycles[0])
+        int(size.strip()),
+        int(cycles.strip()[0])
     ))
 
 
-@pytest.mark.parametrize("addr_mode, opcode, size, cycles", params)
-def test_opcode_properties(nes, cpu, addr_mode, opcode, size, cycles):
+@pytest.mark.parametrize("mnemonics, addr_mode, opcode, size, cycles", params)
+def test_opcode_properties(nes, cpu, mnemonics, addr_mode, opcode, size, cycles):
     nes.write(0, opcode)
-    assert cpu.execute() == cycles
+    assert cpu.fetch() == opcode
+    assert cpu.decode(opcode) == (mnemonics, addr_mode)
+    assert cpu.execute(mnemonics, addr_mode) == cycles
     assert cpu.r.PC == size
     
         

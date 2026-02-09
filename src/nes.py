@@ -29,8 +29,10 @@ class NES:
     def get_next_frame(self) -> bytes:
         new_frame = None
         while not new_frame:
-            ticks = self.cpu.execute()
-            ppu_ticks = ticks * 3
+            opcode = self.cpu.fetch()
+            mnemonic, addr_mode = self.cpu.decode(opcode)
+            cycles = self.cpu.execute(mnemonic, addr_mode)
+            ppu_ticks = cycles * 3
             for _ in range(ppu_ticks):
                 pixel = self.ppu.tick()
                 if pixel:

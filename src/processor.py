@@ -8,6 +8,28 @@ class Bus(Protocol):
     def write(self, addr: int, value: int):
         ...
 
+
+with open("data/opcodes.txt") as file:
+    opcode_lines = file.readlines()
+
+opcodes: list[tuple[str, str, int, int, int]] = []
+for opcode in opcode_lines:
+    mnemonics, addr_mode, opcode, size, cycles = opcode.split("|")
+    opcodes.append((
+        mnemonics.strip(),
+        addr_mode.strip(),
+        int(opcode.strip()[1:], 16),
+        int(size.strip()),
+        int(cycles.strip()[0])
+    ))
+
+
+OPCODES: dict[int, tuple[str, str]] = {
+    opcode: (mnemonics, addr_mode)
+    for mnemonics, addr_mode, opcode, *_ in opcodes
+}
+
+
 @dataclass
 class Registers:
     A: int = field(default=0)
@@ -220,174 +242,264 @@ class CPU6502:
         self.r.A = self.pull()
         self.set_flag("Z", self.r.A == 0)
         return 4
-
-    def execute(self) -> int:
+    
+    def fetch(self) -> int:
         opcode = self.read(self.r.PC)
         self.r.PC += 1
-        match opcode:
-            case 0xE0: # CPX imm
-                value = self.r.X - self.read(self.r.PC)
-                self.r.PC += 1
-                self.ops.CPX(value)
-                return 2
-            case 0xC9: # CMP imm
+        return opcode
+
+    def decode(self, opcode) -> tuple[str, str]:
+        try:
+            return OPCODES[opcode]
+        except KeyError as e:
+            raise KeyError(hex(e.args[0]))
+    
+    def execute(self, mnomonic, addr_mode):
+        value = 0
+        match addr_mode:
+            case "immi":
                 value = self.read(self.r.PC)
                 self.r.PC += 1
-                self.ops.CMP(value)
+            case "zero": ...
+            case "zerx": ...
+            case "abso": ...
+            case "absx": ...
+            case "absy": ...
+            case "indx": ...
+            case "indy": ...
+
+        match mnomonic:
+            case "ADC": ...
+            case "AND": ...
+            case "ASL": ...
+            case "BCC": ...
+            case "BCD": ...
+            case "BEQ": ...
+            case "BIT": ...
+            case "BMI": ...
+            case "BNE": ...
+            case "BPL": ...
+            case "BRK": ...
+            case "BVC": ...
+            case "BVS": ...
+            case "CLC": ...
+            case "CLD": 
+                self.set_flag("D", False)
                 return 2
-            case 0xC5: # CMP zero
-                addr = self.read(self.r.PC)
-                self.r.PC += 1
-                value = self.read(addr)
-                self.ops.CMP(value)
-                return 3
-            case 0xA5: # LDA zero page
-                addr = self.read(self.r.PC)
-                self.r.PC += 1
-                value = self.zero_page(addr)
-                self.ops.LDA(value)
-                return 3
-            case 0xA9: # LDA imm
-                value = self.read(self.r.PC)
-                self.r.PC += 1
-                self.ops.LDA(value)
+            case "CLI": ...
+            case "CLV": ...
+            case "CMP": ...
+            case "CPX": ...
+            case "CPY": ...
+            case "DEC": ...
+            case "DEX": ...
+            case "DEY": ...
+            case "EOR": ...
+            case "INC": ...
+            case "INX": ...
+            case "INY": ...
+            case "JMP": ...
+            case "JSR": ...
+            case "LDA": ...
+            case "LDX":
+                self.r.X = value
+                self.set_flag("Z", value == 0)
+                self.set_flag("N", bool(value & 0x80))
                 return 2
-            case 0xAD: # LDA abs
-                abs_addr = self.get_absolute_addr()
-                value = self.read(abs_addr)
-                self.ops.LDA(value)
-                return 4
-            case 0xBD: # LDA abs x
-                abs_addr = self.get_absolute_addr()
-                value = self.read(abs_addr + self.r.X)
-                self.ops.LDA(value)
-                return 4
-            case 0xB1: # LDA ind y
-                operand = self.read(self.r.PC)
-                self.r.PC += 1
-                value = self.indirect_y(operand)
-                self.ops.LDA(value)
-                return 5
-            case 0x8D: # STA abs
-                abs_addr = self.get_absolute_addr()
-                self.nes.write(abs_addr, self.r.A)
-                return 4
-            case 0x85: # STA zero
-                addr = self.read(self.r.PC)
-                self.r.PC += 1
-                self.write(addr, self.r.A)
-                return 3
-            case 0x8E: # STX abs
-                abs_addr = self.get_absolute_addr()
-                self.nes.write(abs_addr, self.r.X)
-                return 4
-            case 0x86: # STX zero
-                self.nes.write(self.get_zero_addr(), self.r.X)
-                return 4
-            case 0x8C: # STY abs
-                abs_addr = self.get_absolute_addr()
-                self.nes.write(abs_addr, self.r.Y)
-                return 4
-            case 0xA2: # LDX imm
-                value = self.read(self.r.PC)
-                self.r.PC += 1
-                self.ops.LDX(value)
+            case "LDY": ...
+            case "LSR": ...
+            case "NOP": ...
+            case "ORA": ...
+            case "PHA": ...
+            case "PHP": ...
+            case "PLA": ...
+            case "PLP": ...
+            case "ROL": ...
+            case "ROR": ...
+            case "RTI": ...
+            case "RTS": ...
+            case "SBC": ...
+            case "SEC": ...
+            case "SED": ...
+            case "SEI": 
+                self.set_flag("I", True)
                 return 2
-            case 0xA0: # LDY imm
-                value = self.read(self.r.PC)
-                self.r.PC += 1
-                self.ops.LDY(value)
-                return 2
-            case 0xE6: # INC zero
-                addr = self.read(self.r.PC)
-                self.r.PC += 1
-                value = self.zero_page(addr)
-                self.write(addr, self.ops.INC(value))
-                return 5
-            case 0xCA: # DEX
-                self.ops.DEX()
-                return 2
-            case 0xE8: # INX
-                self.ops.INX()
-                return 2
-            case 0x88: # DEY
-                self.ops.DEY()
-                return 2
-            case 0xC8: # INY
-                self.ops.INY()
-                return 2
-            case 0x10: # Branch if plus
-                offset = self.get_branch_offset()
-                if not self.get_negative():
-                    self.r.PC += offset
-                    return 3
-                return 2
-            case 0xF0: # Branch if equal
-                offset = self.get_branch_offset()
-                if self.get_zero():
-                    self.r.PC += offset
-                    return 3
-                return 2
-            case 0xD0: # Branch if not equal
-                offset = self.get_branch_offset()
-                if not self.get_zero():
-                    self.r.PC += offset
-                    return 3
-                return 2
-            case 0x4A: # LSR
-                self.ops.LSR(self.r.A)
-                return 2
-            case 0x26: # ROL
-                addr = self.read(self.r.PC)
-                self.r.PC += 1
-                value = self.zero_page(addr)
-                self.write(addr, self.ops.ROL(value))
-                return 5
-            case 0x45:
-                addr = self.read(self.r.PC)
-                self.r.PC += 1
-                value = self.zero_page(addr)
-                self.ops.EOR(value)
-                return 3
-            case 0x25:
-                addr = self.read(self.r.PC)
-                self.r.PC += 1
-                value = self.zero_page(addr)
-                self.ops.AND(value)
-                return 3
-            case 0x48: # PHA
-                self.push(self.r.A)
-                return 3
-            case 0x68: # PLA
-                self.r.A = self.pull()
-                return 4
-            case 0x78: # SEI
-                self.ops.SEI()
-                return 2
-            case 0xD8: # CLD
-                self.ops.CLD()
-                return 2
-            case 0x9A: # TXS
+            case "STA": ...
+            case "STX": ...
+            case "STY": ...
+            case "TAX": ...
+            case "TAY": ...
+            case "TXS":
                 self.r.S = self.r.X
                 return 2
-            case 0x8A: # TXA
-                self.r.A = self.r.X
-                return 2
-            case 0xAA: # TAX
-                self.r.X = self.r.A
-                return 2
-            case 0x20: # JSR
-                abs_addr = self.get_absolute_addr()
-                return_addr = self.r.PC - 1
-                self.push((return_addr >> 8) & 0xFF)
-                self.push(return_addr & 0x00FF)
-                self.r.PC = abs_addr
-                return 6
-            case 0x60: # RTS
-                lo_byte = self.pull()
-                hi_byte = self.pull()
-                addr = (hi_byte << 8) | lo_byte
-                self.r.PC = addr + 1
-                return 6
-            case _:
-                raise Exception(f"Opcode 0x{opcode:02X} is not implemented")
+            case "TYA": ...
+        raise Exception(f"{mnomonic} with addr_mode: {addr_mode} not implemented")
+
+    # def execute(self) -> int:
+    #     match opcode:
+    #         case 0xE0: # CPX imm
+    #             value = self.r.X - self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             self.ops.CPX(value)
+    #             return 2
+    #         case 0xC9: # CMP imm
+    #             value = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             self.ops.CMP(value)
+    #             return 2
+    #         case 0xC5: # CMP zero
+    #             addr = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             value = self.read(addr)
+    #             self.ops.CMP(value)
+    #             return 3
+    #         case 0xA5: # LDA zero page
+    #             addr = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             value = self.zero_page(addr)
+    #             self.ops.LDA(value)
+    #             return 3
+    #         case 0xA9: # LDA imm
+    #             value = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             self.ops.LDA(value)
+    #             return 2
+    #         case 0xAD: # LDA abs
+    #             abs_addr = self.get_absolute_addr()
+    #             value = self.read(abs_addr)
+    #             self.ops.LDA(value)
+    #             return 4
+    #         case 0xBD: # LDA abs x
+    #             abs_addr = self.get_absolute_addr()
+    #             value = self.read(abs_addr + self.r.X)
+    #             self.ops.LDA(value)
+    #             return 4
+    #         case 0xB1: # LDA ind y
+    #             operand = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             value = self.indirect_y(operand)
+    #             self.ops.LDA(value)
+    #             return 5
+    #         case 0x8D: # STA abs
+    #             abs_addr = self.get_absolute_addr()
+    #             self.nes.write(abs_addr, self.r.A)
+    #             return 4
+    #         case 0x85: # STA zero
+    #             addr = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             self.write(addr, self.r.A)
+    #             return 3
+    #         case 0x8E: # STX abs
+    #             abs_addr = self.get_absolute_addr()
+    #             self.nes.write(abs_addr, self.r.X)
+    #             return 4
+    #         case 0x86: # STX zero
+    #             self.nes.write(self.get_zero_addr(), self.r.X)
+    #             return 4
+    #         case 0x8C: # STY abs
+    #             abs_addr = self.get_absolute_addr()
+    #             self.nes.write(abs_addr, self.r.Y)
+    #             return 4
+    #         case 0xA2: # LDX imm
+    #             value = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             self.ops.LDX(value)
+    #             return 2
+    #         case 0xA0: # LDY imm
+    #             value = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             self.ops.LDY(value)
+    #             return 2
+    #         case 0xE6: # INC zero
+    #             addr = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             value = self.zero_page(addr)
+    #             self.write(addr, self.ops.INC(value))
+    #             return 5
+    #         case 0xCA: # DEX
+    #             self.ops.DEX()
+    #             return 2
+    #         case 0xE8: # INX
+    #             self.ops.INX()
+    #             return 2
+    #         case 0x88: # DEY
+    #             self.ops.DEY()
+    #             return 2
+    #         case 0xC8: # INY
+    #             self.ops.INY()
+    #             return 2
+    #         case 0x10: # Branch if plus
+    #             offset = self.get_branch_offset()
+    #             if not self.get_negative():
+    #                 self.r.PC += offset
+    #                 return 3
+    #             return 2
+    #         case 0xF0: # Branch if equal
+    #             offset = self.get_branch_offset()
+    #             if self.get_zero():
+    #                 self.r.PC += offset
+    #                 return 3
+    #             return 2
+    #         case 0xD0: # Branch if not equal
+    #             offset = self.get_branch_offset()
+    #             if not self.get_zero():
+    #                 self.r.PC += offset
+    #                 return 3
+    #             return 2
+    #         case 0x4A: # LSR
+    #             self.ops.LSR(self.r.A)
+    #             return 2
+    #         case 0x26: # ROL
+    #             addr = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             value = self.zero_page(addr)
+    #             self.write(addr, self.ops.ROL(value))
+    #             return 5
+    #         case 0x45:
+    #             addr = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             value = self.zero_page(addr)
+    #             self.ops.EOR(value)
+    #             return 3
+    #         case 0x25:
+    #             addr = self.read(self.r.PC)
+    #             self.r.PC += 1
+    #             value = self.zero_page(addr)
+    #             self.ops.AND(value)
+    #             return 3
+    #         case 0x48: # PHA
+    #             self.push(self.r.A)
+    #             return 3
+    #         case 0x68: # PLA
+    #             self.r.A = self.pull()
+    #             return 4
+    #         case 0x78: # SEI
+    #             self.ops.SEI()
+    #             return 2
+    #         case 0xD8: # CLD
+    #             self.ops.CLD()
+    #             return 2
+    #         case 0x9A: # TXS
+    #             self.r.S = self.r.X
+    #             return 2
+    #         case 0x8A: # TXA
+    #             self.r.A = self.r.X
+    #             return 2
+    #         case 0xAA: # TAX
+    #             self.r.X = self.r.A
+    #             return 2
+    #         case 0x20: # JSR
+    #             abs_addr = self.get_absolute_addr()
+    #             return_addr = self.r.PC - 1
+    #             self.push((return_addr >> 8) & 0xFF)
+    #             self.push(return_addr & 0x00FF)
+    #             self.r.PC = abs_addr
+    #             return 6
+    #         case 0x60: # RTS
+    #             lo_byte = self.pull()
+    #             hi_byte = self.pull()
+    #             addr = (hi_byte << 8) | lo_byte
+    #             self.r.PC = addr + 1
+    #             return 6
+    #         case _:
+    #             raise Exception(f"Opcode 0x{opcode:02X} is not implemented")
