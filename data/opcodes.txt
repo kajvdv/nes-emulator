@@ -20,7 +20,7 @@ ASL|zerx|$16|2|6
 ASL|abso|$0E|3|6
 ASL|absx|$1E|3|7
 BCC|rela|$90|2|2 (3 if branch taken, 4 if page crossed)*
-BCD|rela|$B0|2|2 (3 if branch taken, 4 if page crossed)*
+BCS|rela|$B0|2|2 (3 if branch taken, 4 if page crossed)*
 BEQ|rela|$F0|2|2 (3 if branch taken, 4 if page crossed)*
 BIT|zero|$24|2|3
 BIT|abso|$2C|3|4

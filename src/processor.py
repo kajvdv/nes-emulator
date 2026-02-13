@@ -253,36 +253,83 @@ class CPU6502:
             return OPCODES[opcode]
         except KeyError as e:
             raise KeyError(hex(e.args[0]))
-    
-    def execute(self, mnomonic, addr_mode):
-        value = 0
+        
+    def execute(self, mnomonic: str, addr_mode: str) -> int:
+        value = -1
+        addr = -1
         match addr_mode:
             case "immi":
                 value = self.read(self.r.PC)
                 self.r.PC += 1
-            case "zero": ...
-            case "zerx": ...
-            case "abso": ...
-            case "absx": ...
-            case "absy": ...
-            case "indx": ...
-            case "indy": ...
+            case "zero":
+                addr = self.read(self.r.PC)
+                self.r.PC += 1
+                value = self.read(addr)
+            case "zerx":
+                raise NotImplementedError()
+            case "abso":
+                lo = self.read(self.r.PC)
+                self.r.PC += 1
+                hi = self.read(self.r.PC)
+                self.r.PC += 1
+                addr = (hi << 8) | lo
+                value = self.read(addr)
+            case "absx":
+                raise NotImplementedError()
+            case "absy":
+                raise NotImplementedError()
+            case "indx":
+                raise NotImplementedError()
+            case "indy":
+                raise NotImplementedError()
+            case "rela":
+                value = self.read(self.r.PC)
+                self.r.PC += 1
 
         match mnomonic:
             case "ADC": ...
             case "AND": ...
             case "ASL": ...
-            case "BCC": ...
-            case "BCD": ...
-            case "BEQ": ...
-            case "BIT": ...
-            case "BMI": ...
-            case "BNE": ...
-            case "BPL": ...
+            case "BCC": 
+                if not self.get_flag("C"):
+                    self.r.PC += value
+                return 2
+            case "BCS":
+                if self.get_flag("C"):
+                    self.r.PC += value
+                return 2
+            case "BEQ": 
+                if self.get_flag("Z"):
+                    self.r.PC += value
+                return 2
+            case "BIT": 
+                self.r.P = value & self.r.A
+                print("Status register is now", self.r.P)
+                return 0
+            case "BMI":
+                if self.get_flag("N"):
+                    self.r.PC += value
+                return 2
+            case "BNE": 
+                if not self.get_flag("Z"):
+                    self.r.PC += value
+                return 2
+            case "BPL": 
+                if not self.get_flag("N"):
+                    self.r.PC += value
+                return 2
             case "BRK": ...
-            case "BVC": ...
-            case "BVS": ...
-            case "CLC": ...
+            case "BVC": 
+                if not self.get_flag("V"):
+                    self.r.PC += value
+                return 2
+            case "BVS": 
+                if self.get_flag("V"):
+                    self.r.PC += value
+                return 2
+            case "CLC": 
+                self.set_flag("C", False)
+                return 2
             case "CLD": 
                 self.set_flag("D", False)
                 return 2
@@ -298,9 +345,15 @@ class CPU6502:
             case "INC": ...
             case "INX": ...
             case "INY": ...
-            case "JMP": ...
+            case "JMP": 
+                self.r.PC = addr
+                return 0
             case "JSR": ...
-            case "LDA": ...
+            case "LDA": 
+                self.r.A = value
+                self.set_flag("Z", value == 0)
+                self.set_flag("N", bool(value & 0x80))
+                return 2
             case "LDX":
                 self.r.X = value
                 self.set_flag("Z", value == 0)
@@ -308,7 +361,8 @@ class CPU6502:
                 return 2
             case "LDY": ...
             case "LSR": ...
-            case "NOP": ...
+            case "NOP": 
+                return 2
             case "ORA": ...
             case "PHA": ...
             case "PHP": ...
@@ -319,13 +373,21 @@ class CPU6502:
             case "RTI": ...
             case "RTS": ...
             case "SBC": ...
-            case "SEC": ...
-            case "SED": ...
+            case "SEC": 
+                self.set_flag("C", True)
+                return 2
+            case "SED": 
+                self.set_flag("D", True)
+                return 2
             case "SEI": 
                 self.set_flag("I", True)
                 return 2
-            case "STA": ...
-            case "STX": ...
+            case "STA": 
+                self.nes.write(addr, self.r.A)
+                return 4
+            case "STX": 
+                self.nes.write(addr, self.r.X)
+                return 4
             case "STY": ...
             case "TAX": ...
             case "TAY": ...
@@ -334,6 +396,11 @@ class CPU6502:
                 return 2
             case "TYA": ...
         raise Exception(f"{mnomonic} with addr_mode: {addr_mode} not implemented")
+
+    def step(self):
+        opcode = self.fetch()
+        mnomonic, addr_mode = self.decode(opcode)
+        return self.execute(mnomonic, addr_mode)
 
     # def execute(self) -> int:
     #     match opcode:
