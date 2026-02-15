@@ -266,6 +266,8 @@ class CPU6502:
         value = -1
         addr = -1
         match addr_mode:
+            case "accu":
+                value = self.r.A
             case "immi":
                 value = self.read(self.r.PC)
                 self.r.PC += 1
@@ -312,7 +314,13 @@ class CPU6502:
                 self.set_flag("Z", self.r.A == 0)
                 self.set_flag("N", bool(self.r.A & 0x80))
                 return 0
-            case "ASL": ...
+            case "ASL": 
+                result = (value << 1) & 0xFF
+                print(f"0x{result:02X} = (0x{value:02X} << 1) & 0xFF")
+                self.set_flag("C", bool(value & 0x80))
+                self.set_flag("Z", result == 0)
+                self.set_flag("N", bool(result & 0x80))
+                value = result
             case "BCC": 
                 if not self.get_flag("C"):
                     self.r.PC += value
@@ -363,7 +371,7 @@ class CPU6502:
                 return 2
             case "CMP":
                 result = (self.r.A - value) & 0x80
-                print(f"CMP: comparing A {self.r.A:08b}/0x{self.r.A:02X} with {value:08b}/0x{value:02X}, resulting in {result:08b}")
+                print(f"CMP: 0x{result:02X} = (0x{self.r.A:02X} - 0x{value:02X}) & 0x80")
                 self.set_flag("C", self.r.A >= value)
                 self.set_flag("Z", self.r.A == value)
                 self.set_flag("N", bool(result))
@@ -430,7 +438,8 @@ class CPU6502:
                 return 0
             case "LDA": 
                 self.r.A = value
-                print(f"LDA: {value:08b} loaded in A")
+                # print(f"LDA: {value:08b} loaded in A")
+                print(f"LDA: 0x{self.r.A:02X} = 0x{value:02X}")
                 self.set_flag("Z", value == 0)
                 self.set_flag("N", bool(value & 0x80))
                 return 2
@@ -445,7 +454,13 @@ class CPU6502:
                 self.set_flag("Z", value == 0)
                 self.set_flag("N", bool(value & 0x80))
                 return 2
-            case "LSR": ...
+            case "LSR":
+                result = value >> 1
+                print(f"LSR: {result} = {value} >> 1")
+                self.set_flag("C", bool(value & 0x01))
+                self.set_flag("Z", result == 0)
+                self.set_flag("N", False)
+                value = result
             case "NOP": 
                 return 2
             case "ORA":
@@ -470,8 +485,20 @@ class CPU6502:
             case "PLP": 
                 self.r.P = self.pull()
                 return 4
-            case "ROL": ...
-            case "ROR": ...
+            case "ROL": 
+                result = (value << 1) | (0x01 if self.get_flag("C") else 0x00)
+                print(f"ROL: 0x{result:02X} = (0x{value:02X} << 1) | (0x01 if {self.get_flag("C")} else 0x00)")
+                self.set_flag("C", bool(value & 0x80))
+                self.set_flag("Z", result == 0)
+                self.set_flag("N", bool(result & 0x80))
+                value = result
+            case "ROR":
+                result = (value >> 1) | (0x80 if self.get_flag("C") else 0x00)
+                print(f"ROR: 0x{result:02X} = (0x{value:02X} >> 1) | (0x80 if {self.get_flag("C")} else 0x00)")
+                self.set_flag("C", bool(value & 0x01))
+                self.set_flag("Z", result == 0)
+                self.set_flag("N", bool(result & 0x80))
+                value = result
             case "RTI": 
                 self.r.P = self.pull()
                 lo = self.pull()
@@ -512,23 +539,55 @@ class CPU6502:
                 self.nes.write(addr, self.r.X)
                 return 4
             case "STY":
-                print(f"STy: Wrting {self.r.Y:02X} to {addr:04X}")
+                print(f"STY: Wrting {self.r.Y:02X} to {addr:04X}")
                 self.nes.write(addr, self.r.Y)
                 return 4
-            case "TAX": ...
+            case "TAX":
+                print(f"TAX: A 0x{self.r.A:02X} -> X")
+                self.r.X = self.r.A
+                self.set_flag("Z", self.r.X == 0)
+                self.set_flag("N", bool(self.r.X & 0x80))
+                return 2
             case "TAY":
                 print(f"TAY: A 0x{self.r.A:02X} -> Y")
                 self.r.Y = self.r.A
+                self.set_flag("Z", self.r.Y == 0)
+                self.set_flag("N", bool(self.r.Y & 0x80))
                 return 2
             case "TSX":
                 print(f"TSX: SP 0x{self.r.S:02X} -> X")
                 self.r.X = self.r.S
+                self.set_flag("Z", self.r.X == 0)
+                self.set_flag("N", bool(self.r.X & 0x80))
+                return 2
+            case "TXA":
+                print(f"TXA: X 0x{self.r.X:02X} -> A")
+                self.r.A = self.r.X
+                self.set_flag("Z", self.r.A == 0)
+                self.set_flag("N", bool(self.r.A & 0x80))
                 return 2
             case "TXS":
                 print(f"TXS: X 0x{self.r.X:02X} -> SP")
                 self.r.S = self.r.X
                 return 2
-            case "TYA": ...
+            case "TYA":
+                print(f"TYA: Y 0x{self.r.Y:02X} -> A")
+                self.r.A = self.r.Y
+                self.set_flag("Z", self.r.Y == 0)
+                self.set_flag("N", bool(self.r.Y & 0x80))
+                return 2
+
+        # Writing back to memory
+        match (mnomonic, addr_mode):
+            case (
+                ("ASL", "accu")
+                | ("LSR", "accu")
+                | ("ROR", "accu")
+                | ("ROL", "accu")
+            ):
+                self.r.A = value & 0xFF
+                print(f"accu: self.r.A = 0x{value:02X} & 0xFF")
+                return 0
         raise Exception(f"{mnomonic} with addr_mode: {addr_mode} not implemented")
 
     def step(self):

@@ -28,7 +28,6 @@ def test_pre_test_instructions(nes: NES, cpu: CPU6502):
 
 class BaseTest:
     PC_START = 0
-    TEST_PARAMS = []
     
     @pytest.fixture(autouse=True, scope="class")
     def set_PC_fixture(self, cpu):
@@ -98,7 +97,7 @@ class TestFlag(BaseTest):
         assert nes.read(0x00) == 0
 
 
-class TestIMMI(BaseTest):
+class TestImmi(BaseTest):
     PC_START = 0xC885
 
     @pytest.mark.parametrize("PC", [
@@ -150,6 +149,23 @@ class TestIMMI(BaseTest):
         assert nes.read(0x00) == 0
 
 
+class TestImpl(BaseTest):
+    PC_START = 0xCBDE
+    
+    @pytest.mark.parametrize("PC", [
+        pytest.param(0xCBDE, id="03Eh - INX/DEX/INY/DEY did something bad"),
+        pytest.param(0xCC14, id="03Fh - INY/DEY messed up overflow or carry"),
+        pytest.param(0xCC62, id="040h - INX/DEX messed up overflow or carry"),
+        pytest.param(0xCCB0, id="041h - TAY did something bad (changed wrong regs, messed up flags)"),
+        pytest.param(0xCCEF, id="042h - TAX did something bad (changed wrong regs, messed up flags)"),
+        pytest.param(0xCD2E, id="043h - TYA did something bad (changed wrong regs, messed up flags)"),
+        pytest.param(0xCD6D, id="044h - TXA did something bad (changed wrong regs, messed up flags)"),
+        pytest.param(0xCDAC, id="045h - TXS didn't set flags right, or TSX touched flags and it shouldn't have"),
+    ])
+    def test_nes_(self, nes: NES, PC):
+        assert nes.read(0x00) == 0
+        
+
 class TestStack(BaseTest):
     PC_START = 0xCDF8
 
@@ -167,6 +183,29 @@ class TestStack(BaseTest):
         pytest.param(0xCE33, id="047h - JSR didn't work as expected"),
         pytest.param(0xCE5F, id="048h - RTS/JSR shouldn't have affected flags"),
         pytest.param(0xCE9D, id="049h - RTI/RTS didn't work right when return addys/data were manually pushed"),
+    ])
+    def test_nes_(self, nes: NES, PC):
+        test_number = nes.read(0x00)
+        assert test_number == 0, f"Test {test_number:02X}h failed"
+
+
+class TestAccu(BaseTest):
+    PC_START = 0xCEEE
+
+    @pytest.fixture(autouse=True, scope="class")
+    def set_PC_fixture(self, cpu):
+        cpu.r.PC = self.PC_START
+        cpu.step()
+        cpu.step()
+        cpu.step()
+        cpu.step()
+        return
+
+    @pytest.mark.parametrize("PC", [
+        pytest.param(0xCEF6, id="04Ah - LSR A  failed"),
+        pytest.param(0xCF20, id="04Bh - ASL A  failed"),
+        pytest.param(0xCF4B, id="04Ch - ROR A  failed"),
+        pytest.param(0xCF76, id="04Dh - ROL A  failed"),
     ])
     def test_nes_(self, nes: NES, PC):
         test_number = nes.read(0x00)
