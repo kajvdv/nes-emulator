@@ -229,8 +229,29 @@ class CPU6502:
             self.r.P |= (1 << enum[flag])
         else:
             self.r.P &= ~(1 << enum[flag])
-        print(f"P: {self.r.P:08b} after {flag} -> {int(value)}")
 
+    def set_status_flags(self,
+            N=None,
+            V=None,
+            D=None,
+            I=None,
+            Z=None,
+            C=None,
+    ):
+        if N != None:
+            self.set_flag("N", N)
+        if V != None:
+            self.set_flag("V", V)
+        if D != None:
+            self.set_flag("D", D)
+        if I != None:
+            self.set_flag("I", I)
+        if Z != None:
+            self.set_flag("Z", Z)
+        if C != None:
+            self.set_flag("C", C)
+        print(f"   NV1BDIZC")
+        print(f"P: {self.r.P:08b}")
 
     def get_zero(self):
         return self.get_status_flag(1)
@@ -301,25 +322,31 @@ class CPU6502:
         match mnomonic:
             case "ADC":
                 result = self.r.A + value + (self.r.P & 1)
-                self.set_flag("C", result > 0xFF)
-                self.set_flag("Z", (result & 0xFF) == 0)
-                self.set_flag("V", bool((result ^ self.r.A) & (result ^ value) & 0x80))
-                self.set_flag("N", bool(result & 0x80))
+                self.set_status_flags(
+                    C=result > 0xFF,
+                    Z=(result & 0xFF) == 0,
+                    V=bool((result ^ self.r.A) & (result ^ value) & 0x80),
+                    N=bool(result & 0x80),
+                )
                 self.r.A = result & 0xFF
                 print(f"ADC: result was: {result:08b}, loaded in A: {self.r.A:08b}")
                 return 0
             case "AND": 
                 self.r.A = self.r.A & value
                 print(f"AND: result in A {self.r.A:08b}")
-                self.set_flag("Z", self.r.A == 0)
-                self.set_flag("N", bool(self.r.A & 0x80))
+                self.set_status_flags(
+                    Z=self.r.A == 0,
+                    N=bool(self.r.A & 0x80),
+                )
                 return 0
             case "ASL": 
                 result = (value << 1) & 0xFF
                 print(f"0x{result:02X} = (0x{value:02X} << 1) & 0xFF")
-                self.set_flag("C", bool(value & 0x80))
-                self.set_flag("Z", result == 0)
-                self.set_flag("N", bool(result & 0x80))
+                self.set_status_flags(
+                    C=bool(value & 0x80),
+                    Z=result == 0,
+                    N=bool(result & 0x80),
+                )
                 value = result
             case "BCC": 
                 if not self.get_flag("C"):
@@ -334,9 +361,11 @@ class CPU6502:
                     self.r.PC += value
                 return 2
             case "BIT": 
-                self.set_flag("Z", (value & self.r.A) == 0)
-                self.set_flag("N", bool(value & 0b00100000))
-                self.set_flag("V", bool(value & 0b01000000))
+                self.set_status_flags(
+                    Z=(value & self.r.A) == 0,
+                    N=bool(value & 0b00100000),
+                    V=bool(value & 0b01000000),
+                )
                 return 0
             case "BMI":
                 if self.get_flag("N"):
@@ -372,58 +401,74 @@ class CPU6502:
             case "CMP":
                 result = (self.r.A - value) & 0x80
                 print(f"CMP: 0x{result:02X} = (0x{self.r.A:02X} - 0x{value:02X}) & 0x80")
-                self.set_flag("C", self.r.A >= value)
-                self.set_flag("Z", self.r.A == value)
-                self.set_flag("N", bool(result))
+                self.set_status_flags(
+                    C=self.r.A >= value,
+                    Z=self.r.A == value,
+                    N=bool(result),
+                )
                 return 0
             case "CPX": 
                 result = (self.r.X - value) & 0x80
                 print(f"CMX: comparing X 0x{self.r.X:02X} with 0x{value:02X}, resulting in 0x{result:02X}")
-                self.set_flag("C", self.r.X >= value)
-                self.set_flag("Z", self.r.X == value)
-                self.set_flag("N", bool(result))
+                self.set_status_flags(
+                    C=self.r.X >= value,
+                    Z=self.r.X == value,
+                    N=bool(result),
+                )
                 return 0
             case "CPY": 
                 result = (self.r.Y - value) & 0x80
                 print(f"CMY: comparing Y {self.r.Y:08b} with {value:08b}, resulting in {result:08b}")
-                self.set_flag("C", self.r.Y >= value)
-                self.set_flag("Z", self.r.Y == value)
-                self.set_flag("N", bool(result))
+                self.set_status_flags(
+                    C=self.r.Y >= value,
+                    Z=self.r.Y == value,
+                    N=bool(result),
+                )
                 return 0
             case "DEC": ...
             case "DEX": 
                 result = self.r.X - 1
-                self.set_flag("Z", result == 0)
-                self.set_flag("N", bool(result & 0x80))
+                self.set_status_flags(
+                    Z=result == 0,
+                    N=bool(result & 0x80),
+                )
                 self.r.X = result & 0xFF
                 print(f"DEX: new X 0x{self.r.X:02X}")
                 return 0
             case "DEY": 
                 result = self.r.Y - 1
-                self.set_flag("Z", result == 0)
-                self.set_flag("N", bool(result & 0x80))
+                self.set_status_flags(
+                    Z=result == 0,
+                    N=bool(result & 0x80),
+                )
                 self.r.Y = result & 0xFF
                 print(f"DEY: new Y 0x{self.r.Y:02X}")
                 return 0
             case "EOR": 
                 self.r.A = self.r.A ^ value
-                self.set_flag("Z", self.r.A == 0)
-                self.set_flag("N", bool(self.r.A & 0x80))
+                self.set_status_flags(
+                    Z=self.r.A == 0,
+                    N=bool(self.r.A & 0x80),
+                )
                 return 0
             case "INC": ...
             case "INX":
                 result = self.r.X + 1
                 print(f"INX: result 0x{result:02X}")
                 self.r.X = result & 0xFF
-                self.set_flag("Z", self.r.X == 0)
-                self.set_flag("N", bool(self.r.X & 0x80))
+                self.set_status_flags(
+                    Z=self.r.X == 0,
+                    N=bool(self.r.X & 0x80),
+                )
                 return 0
             case "INY":
                 result = self.r.Y + 1
                 print(f"INY: result 0x{result:02X}")
                 self.r.Y = result & 0xFF
-                self.set_flag("Z", self.r.Y == 0)
-                self.set_flag("N", bool(self.r.Y & 0x80))
+                self.set_status_flags(
+                    Z=self.r.Y == 0,
+                    N=bool(self.r.Y & 0x80),
+                )
                 return 0
             case "JMP": 
                 self.r.PC = addr
@@ -440,33 +485,43 @@ class CPU6502:
                 self.r.A = value
                 # print(f"LDA: {value:08b} loaded in A")
                 print(f"LDA: 0x{self.r.A:02X} = 0x{value:02X}")
-                self.set_flag("Z", value == 0)
-                self.set_flag("N", bool(value & 0x80))
+                self.set_status_flags(
+                    Z=value == 0,
+                    N=bool(value & 0x80),
+                )
                 return 2
             case "LDX":
                 print(f"LDX: setting X to 0x{value:02X}")
                 self.r.X = value
-                self.set_flag("Z", value == 0)
-                self.set_flag("N", bool(value & 0x80))
+                self.set_status_flags(
+                    Z=value == 0,
+                    N=bool(value & 0x80),
+                )
                 return 2
             case "LDY": 
                 self.r.Y = value
-                self.set_flag("Z", value == 0)
-                self.set_flag("N", bool(value & 0x80))
+                self.set_status_flags(
+                    Z=value == 0,
+                    N=bool(value & 0x80),
+                )
                 return 2
             case "LSR":
                 result = value >> 1
                 print(f"LSR: {result} = {value} >> 1")
-                self.set_flag("C", bool(value & 0x01))
-                self.set_flag("Z", result == 0)
-                self.set_flag("N", False)
+                self.set_status_flags(
+                    C=bool(value & 0x01),
+                    Z=result == 0,
+                    N=False,
+                )
                 value = result
             case "NOP": 
                 return 2
             case "ORA":
                 self.r.A |= value
-                self.set_flag("Z", self.r.A == 0)
-                self.set_flag("N", bool(self.r.A & 0x80))
+                self.set_status_flags(
+                    Z=self.r.A == 0,
+                    N=bool(self.r.A & 0x80),
+                )
                 return 0
             case "PHA": 
                 print(f"PHA: pushing A 0b{self.r.A:08b}/0x{self.r.A:02X}")
@@ -479,8 +534,10 @@ class CPU6502:
             case "PLA": 
                 self.r.A = self.pull()
                 print(f"PLA: pulled {self.r.A:08b}")
-                self.set_flag("Z", self.r.A == 0)
-                self.set_flag("N", bool(self.r.A & 0x80))
+                self.set_status_flags(
+                    Z=self.r.A == 0,
+                    N=bool(self.r.A & 0x80),
+                )
                 return 4
             case "PLP": 
                 self.r.P = self.pull()
@@ -488,16 +545,20 @@ class CPU6502:
             case "ROL": 
                 result = (value << 1) | (0x01 if self.get_flag("C") else 0x00)
                 print(f"ROL: 0x{result:02X} = (0x{value:02X} << 1) | (0x01 if {self.get_flag("C")} else 0x00)")
-                self.set_flag("C", bool(value & 0x80))
-                self.set_flag("Z", result == 0)
-                self.set_flag("N", bool(result & 0x80))
+                self.set_status_flags(
+                    C=bool(value & 0x80),
+                    Z=result == 0,
+                    N=bool(result & 0x80),
+                )
                 value = result
             case "ROR":
                 result = (value >> 1) | (0x80 if self.get_flag("C") else 0x00)
                 print(f"ROR: 0x{result:02X} = (0x{value:02X} >> 1) | (0x80 if {self.get_flag("C")} else 0x00)")
-                self.set_flag("C", bool(value & 0x01))
-                self.set_flag("Z", result == 0)
-                self.set_flag("N", bool(result & 0x80))
+                self.set_status_flags(
+                    C=bool(value & 0x01),
+                    Z=result == 0,
+                    N=bool(result & 0x80),
+                )
                 value = result
             case "RTI": 
                 self.r.P = self.pull()
@@ -515,20 +576,22 @@ class CPU6502:
                 return 0
             case "SBC": 
                 result = self.r.A + ~value + self.get_flag("C")
-                self.set_flag("C", not(result < 0))
-                self.set_flag("Z", result == 0)
-                self.set_flag("V", bool((result ^ self.r.A) & (result ^ ~value) & 0x80))
-                self.set_flag("N", bool(result & 0x80))
+                self.set_status_flags(
+                    C=not(result < 0),
+                    Z=result == 0,
+                    V=bool((result ^ self.r.A) & (result ^ ~value) & 0x80),
+                    N=bool(result & 0x80),
+                )
                 self.r.A = result & 0xFF
                 return 0
             case "SEC": 
-                self.set_flag("C", True)
+                self.set_status_flags(C=True)
                 return 2
             case "SED": 
-                self.set_flag("D", True)
+                self.set_status_flags(D=True)
                 return 2
             case "SEI": 
-                self.set_flag("I", True)
+                self.set_status_flags(I=True)
                 return 2
             case "STA": 
                 print(f"Writing A {self.r.A:08b} to {addr:08b}")
@@ -545,26 +608,34 @@ class CPU6502:
             case "TAX":
                 print(f"TAX: A 0x{self.r.A:02X} -> X")
                 self.r.X = self.r.A
-                self.set_flag("Z", self.r.X == 0)
-                self.set_flag("N", bool(self.r.X & 0x80))
+                self.set_status_flags(
+                    Z=self.r.X == 0,
+                    N=bool(self.r.X & 0x80),
+                )
                 return 2
             case "TAY":
                 print(f"TAY: A 0x{self.r.A:02X} -> Y")
                 self.r.Y = self.r.A
-                self.set_flag("Z", self.r.Y == 0)
-                self.set_flag("N", bool(self.r.Y & 0x80))
+                self.set_status_flags(
+                    Z=self.r.Y == 0,
+                    N=bool(self.r.Y & 0x80),
+                )
                 return 2
             case "TSX":
                 print(f"TSX: SP 0x{self.r.S:02X} -> X")
                 self.r.X = self.r.S
-                self.set_flag("Z", self.r.X == 0)
-                self.set_flag("N", bool(self.r.X & 0x80))
+                self.set_status_flags(
+                    Z=self.r.X == 0,
+                    N=bool(self.r.X & 0x80),
+                )
                 return 2
             case "TXA":
                 print(f"TXA: X 0x{self.r.X:02X} -> A")
                 self.r.A = self.r.X
-                self.set_flag("Z", self.r.A == 0)
-                self.set_flag("N", bool(self.r.A & 0x80))
+                self.set_status_flags(
+                    Z=self.r.A == 0,
+                    N=bool(self.r.A & 0x80),
+                )
                 return 2
             case "TXS":
                 print(f"TXS: X 0x{self.r.X:02X} -> SP")
@@ -573,8 +644,10 @@ class CPU6502:
             case "TYA":
                 print(f"TYA: Y 0x{self.r.Y:02X} -> A")
                 self.r.A = self.r.Y
-                self.set_flag("Z", self.r.Y == 0)
-                self.set_flag("N", bool(self.r.Y & 0x80))
+                self.set_status_flags(
+                    Z=self.r.Y == 0,
+                    N=bool(self.r.Y & 0x80),
+                )
                 return 2
 
         # Writing back to memory
