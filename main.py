@@ -9,12 +9,13 @@ def main():
     screen = Screen()
     with open(Path('roms/nestest.nes'), 'rb') as rom:
         cartridge = Cartridge(rom.read())
-    nes = NES(cartridge, screen)
+    nes = NES(cartridge)
     nes.ppu.status = 0x80
     nes.reset()
     while True:
         screen.process_events()
-        nes.update()
+        frame = nes.get_next_frame()
+        screen.display(frame)
 
 if __name__ == "__main__":
     main()

@@ -5,7 +5,7 @@ from cartridge import Cartridge
 from render import PatternTile, NameTable, Palette, PPU2c02
 from nes import NES
 
-DATA_DIR = Path("data")
+DATA_DIR = Path("data/snapshots")
 DATA_DIR.mkdir(exist_ok=True)
 
 

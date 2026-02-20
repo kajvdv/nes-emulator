@@ -51,15 +51,29 @@ class NES:
         if addr <= 0x1FFF:
             return self.ram[addr & 0x07FF]
         # PPU status registers
+        elif addr == 0x2000:
+            return 0
+        elif addr == 0x2001:
+            ...
         elif addr == 0x2002:
             return self.ppu.get_status()
+        elif addr == 0x2005:
+            ...
+        elif addr == 0x2006:
+            ...
+        elif addr == 0x2007:
+            ...
+        # elif 0x2008 <= 0x3FFF:
+        #     return (addr & 0xF) | 0x2000
+        elif addr == 0x4015:
+            return 0
         elif addr in [0x4016, 0x4017]:
             print("reading for user input")
             return 255
         elif 0x8000 <= addr <= 0xFFFF:
             return self.cartridge.read(addr)
         else:
-            raise Exception(f"Unmapped address used: {addr:04X}")
+            raise Exception(f"Unmapped address used: 0x{addr:04X}")
 
     def write(self, addr: int, value: int):
         assert 0 <= addr <=0xFFFF

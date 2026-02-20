@@ -39,124 +39,11 @@ class Registers:
     P: int = field(default=0)
     PC: int = field(default=0)
 
-class Operations:
-    def __init__(self, r: Registers) -> None:
-        self.r = r
-
-    def set_status_flag(self, flag: int, bool: bool):
-        if bool:
-            self.r.P |= (1 << flag)
-        else:
-            self.r.P &= ~(1 << flag)
-
-    def set_carry(self, value: int):
-        value &= 0xFF
-        self.set_status_flag(0, bool(value & 0xFF00))
-
-    def set_zero(self, value: int):
-        value &= 0xFF
-        self.set_status_flag(1, value == 0)
-
-    def set_negative(self, value: int):
-        value &= 0xFF
-        self.set_status_flag(7, bool(value & 0x80))
-
-    def set_interrupt_diable(self, bool: bool):
-        self.set_status_flag(2, bool)
-    
-    def LDA(self, value: int):
-        self.r.A = value
-        self.set_zero(value)
-        self.set_negative(value)
-
-    def LDX(self, value: int):
-        self.r.X = value
-        self.set_zero(value)
-        self.set_negative(value)
-
-    def LDY(self, value: int):
-        self.r.Y = value
-        self.set_zero(value)
-        self.set_negative(value)
-
-    def CMP(self, value: int):
-        result = self.r.A - value
-        self.set_zero(result)
-        self.set_negative(result)
-
-    def CPX(self, value: int):
-        self.set_zero(value)
-        self.set_negative(value)
-
-    def DEX(self):
-        self.r.X = (self.r.X - 1) & 0xFF
-        self.set_negative(self.r.X)
-        self.set_zero(self.r.X)
-
-    def INC(self, value: int):
-        value += 1
-        self.set_zero(value)
-        self.set_negative(value)
-        return value & 0xFF
-
-    def INX(self):
-        self.r.X = (self.r.X + 1) & 0xFF
-        self.set_negative(self.r.X)
-        self.set_zero(self.r.X)
-
-    def DEY(self):
-        self.r.Y = (self.r.Y - 1) & 0xFF
-        self.set_negative(self.r.Y)
-        self.set_zero(self.r.Y)
-
-    def INY(self):
-        self.r.Y = (self.r.Y + 1) & 0xFF
-        self.set_negative(self.r.Y)
-        self.set_zero(self.r.Y)
-
-    def CLD(self):
-        self.set_status_flag(3, False)
-
-    def SEI(self):
-        self.set_interrupt_diable(True)
-
-    def LSR(self, value):
-        value = (value >> 1) & 0xFF
-        self.set_negative(value)
-        self.set_zero(value)
-        self.set_carry(value)
-        return value
-
-    def ROL(self, value):
-        value = (value << 1) & 0xFF
-        self.set_negative(value)
-        self.set_zero(value)
-        self.set_carry(value)
-        return value 
-    
-    def EOR(self, value):
-        self.r.A = (self.r.A ^ value)
-        self.set_negative(self.r.A)
-        self.set_zero(self.r.A)
-
-    def AND(self, value):
-        self.r.A = (self.r.A ^ value)
-        self.set_negative(self.r.A)
-        self.set_zero(self.r.A)
-
-
 
 class CPU6502:
     def __init__(self, nes: Bus):
         self.nes = nes
         self.r = Registers()
-        self.ops = Operations(self.r)
-        # self.r_A: int = 0
-        # self.r_X: int = 0
-        # self.r_Y: int = 0
-        # self.r_S: int = 0xFF
-        # self.r_P: int = 0
-        # self.r_PC: int = 0
 
     def reset(self):
         lo_pc = self.read(0xFFFC)
@@ -186,38 +73,6 @@ class CPU6502:
         value = self.read(addr)
         print(f"pull: pulled 0x{value:02X} from 0x{addr:04X}")
         return value
-
-    def zero_page(self, addr: int):
-        return self.nes.read(addr & 0xFF)
-
-    def get_zero_addr(self):
-        addr = self.read(self.r.PC)
-        self.r.PC += 1
-        return addr
-    
-    def get_absolute_addr(self):
-        lo_byte = self.read(self.r.PC)
-        self.r.PC += 1
-        hi_byte = self.read(self.r.PC)
-        self.r.PC += 1
-        abs_addr = (hi_byte << 8) | lo_byte
-        return abs_addr
-    
-    def indirect_x(self, operand: int):
-        addr = operand + self.r.X
-        lo_byte = self.read(addr)
-        hi_byte = self.read(addr + 1)
-        abs_addr = (hi_byte << 8) | lo_byte
-        return self.read(abs_addr)
-    
-    def indirect_y(self, operand: int):
-        lo_byte = self.read(operand)
-        hi_byte = self.read(operand + 1)
-        abs_addr = (hi_byte << 8) | lo_byte
-        return self.read(abs_addr + self.r.Y)
-
-    def get_status_flag(self, flag: int):
-        return bool(self.r.P & (1 << flag))
     
     def get_flag(self, flag: Literal["N","V","1","B","D","I","Z","C"]):
         enum = {"N": 7,"V": 6,"1": 5,"B": 4,"D": 3,"I": 2,"Z": 1,"C": 0}
@@ -252,25 +107,13 @@ class CPU6502:
             self.set_flag("C", C)
         print(f"   NV1BDIZC")
         print(f"P: {self.r.P:08b}")
-
-    def get_zero(self):
-        return self.get_status_flag(1)
-
-    def get_negative(self):
-        return self.get_status_flag(7)
     
-    def get_branch_offset(self):
-        offset = self.read(self.r.PC)
-        self.r.PC += 1
+    def branch_off(self, condition, offset):
         if offset & 0x80:
             # If the signed bit is set, the the value should be negative.
-            offset = offset - 256
-        return offset
-    
-    def PLA(self):
-        self.r.A = self.pull()
-        self.set_flag("Z", self.r.A == 0)
-        return 4
+            offset = offset - 0x100
+        if condition:
+            self.r.PC += offset
     
     def fetch(self) -> int:
         opcode = self.read(self.r.PC)
@@ -356,7 +199,6 @@ class CPU6502:
                 else:
                     addr = (self.read(indi_addr + 1) << 8) | self.read(indi_addr + 0)
 
-                # addr = (hi << 8) | lo
                 print(f"indi: addr = (0x{hi:02X} << 8) | 0x{lo:02X}")
 
 
@@ -390,16 +232,13 @@ class CPU6502:
                 )
                 value = result
             case "BCC": 
-                if not self.get_flag("C"):
-                    self.r.PC += value
+                self.branch_off(not self.get_flag("C"), value)
                 return 2
             case "BCS":
-                if self.get_flag("C"):
-                    self.r.PC += value
+                self.branch_off(self.get_flag("C"), value)
                 return 2
             case "BEQ": 
-                if self.get_flag("Z"):
-                    self.r.PC += value
+                self.branch_off(self.get_flag("Z"), value)
                 return 2
             case "BIT": 
                 self.set_status_flags(
@@ -409,26 +248,20 @@ class CPU6502:
                 )
                 return 0
             case "BMI":
-                if self.get_flag("N"):
-                    self.r.PC += value
+                self.branch_off(self.get_flag("N"), value)
                 return 2
             case "BNE": 
-                if not self.get_flag("Z"):
-                    self.r.PC += value
+                self.branch_off(not self.get_flag("Z"), value)
                 return 2
             case "BPL": 
-                if not self.get_flag("N"):
-                    self.r.PC += value
+                self.branch_off(not self.get_flag("N"), value)
                 return 2
             case "BRK": ...
             case "BVC": 
-                print(f"BVC: {not self.get_flag("V")}")
-                if not self.get_flag("V"):
-                    self.r.PC += value
+                self.branch_off(not self.get_flag("V"), value)
                 return 2
             case "BVS": 
-                if self.get_flag("V"):
-                    self.r.PC += value
+                self.branch_off(self.get_flag("V"), value)
                 return 2
             case "CLC": 
                 self.set_flag("C", False)
