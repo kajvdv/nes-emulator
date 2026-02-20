@@ -6,6 +6,271 @@ from processor import CPU6502
 from cartridge import Cartridge
 
 
+ERROR_MESSAGES_02h = {
+    # branch tests
+    0x01: "BCS failed to branch",
+    0x02: "BCS branched when it shouldn't have",
+    0x03: "BCC branched when it shouldn't have",
+    0x04: "BCC failed to branch",
+    0x05: "BEQ failed to branch",
+    0x06: "BEQ branched when it shouldn't have",
+    0x07: "BNE failed to branch",
+    0x08: "BNE branched when it shouldn't have",
+    0x09: "BVS failed to branch",
+    0x0A: "BVC branched when it shouldn't have",
+    0x0B: "BVC failed to branch",
+    0x0C: "BVS branched when it shouldn't have",
+    0x0D: "BPL failed to branch",
+    0x0E: "BPL branched when it shouldn't have",
+    0x0F: "BMI failed to branch",
+    0x10: "BMI branched when it shouldn't have",
+    # flag tests
+    0x11: "PHP/flags failure (bits set) ",
+    0x12: "PHP/flags failure (bits clear)",
+    0x13: "PHP/flags failure (misc bit states)",
+    0x14: "PLP/flags failure (misc bit states)",
+    0x15: "PLP/flags failure (misc bit states)",
+    0x16: "PHA/PLA failure (PLA didn't affect Z and N properly)",
+    0x17: "PHA/PLA failure (PLA didn't affect Z and N properly)",
+    # immediate instruction tests
+    0x18: "ORA # failure",
+    0x19: "ORA # failure",
+    0x1A: "AND # failure",
+    0x1B: "AND # failure",
+    0x1C: "EOR # failure",
+    0x1D: "EOR # failure",
+    0x1E: "ADC # failure (overflow/carry problems)",
+    0x1F: "ADC # failure (decimal mode was turned on)",
+    0x20: "ADC # failure",
+    0x21: "ADC # failure",
+    0x22: "ADC # failure",
+    0x23: "LDA # failure (didn't set N and Z correctly)",
+    0x24: "LDA # failure (didn't set N and Z correctly)",
+    0x25: "CMP # failure (messed up flags)",
+    0x26: "CMP # failure (messed up flags)",
+    0x27: "CMP # failure (messed up flags)",
+    0x28: "CMP # failure (messed up flags)",
+    0x29: "CMP # failure (messed up flags)",
+    0x2A: "CMP # failure (messed up flags)",
+    0x2B: "CPY # failure (messed up flags)",
+    0x2C: "CPY # failure (messed up flags)",
+    0x2D: "CPY # failure (messed up flags)",
+    0x2E: "CPY # failure (messed up flags)",
+    0x2F: "CPY # failure (messed up flags)",
+    0x30: "CPY # failure (messed up flags)",
+    0x31: "CPY # failure (messed up flags)",
+    0x32: "CPX # failure (messed up flags)",
+    0x33: "CPX # failure (messed up flags)",
+    0x34: "CPX # failure (messed up flags)",
+    0x35: "CPX # failure (messed up flags)",
+    0x36: "CPX # failure (messed up flags)",
+    0x37: "CPX # failure (messed up flags)",
+    0x38: "CPX # failure (messed up flags)",
+    0x39: "LDX # failure (didn't set N and Z correctly)",
+    0x3A: "LDX # failure (didn't set N and Z correctly)",
+    0x3B: "LDY # failure (didn't set N and Z correctly)",
+    0x3C: "LDY # failure (didn't set N and Z correctly)",
+    0x3D: "compare(s) stored the result in a register (whoops!)",
+    0x71: "SBC # failure",
+    0x72: "SBC # failure",
+    0x73: "SBC # failure",
+    0x74: "SBC # failure",
+    0x75: "SBC # failure",
+    # implied instruction tests
+    0x3E: "INX/DEX/INY/DEY did something bad",
+    0x3F: "INY/DEY messed up overflow or carry",
+    0x40: "INX/DEX messed up overflow or carry",
+    0x41: "TAY did something bad (changed wrong regs, messed up flags)",
+    0x42: "TAX did something bad (changed wrong regs, messed up flags)",
+    0x43: "TYA did something bad (changed wrong regs, messed up flags)",
+    0x44: "TXA did something bad (changed wrong regs, messed up flags)",
+    0x45: "TXS didn't set flags right, or TSX touched flags and it shouldn't have",
+    # stack tests
+    0x46: "wrong data popped, or data not in right location on stack",
+    0x47: "JSR didn't work as expected",
+    0x48: "RTS/JSR shouldn't have affected flags",
+    0x49: "RTI/RTS didn't work right when return addys/data were manually pushed",
+    # accumulator tests
+    0x4A: "LSR A  failed",
+    0x4B: "ASL A  failed",
+    0x4C: "ROR A  failed",
+    0x4D: "ROL A  failed",
+    # (indirect,x) tests
+    0x58: "LDA didn't load the data it expected to load",
+    0x59: "STA didn't store the data where it was supposed to",
+    0x5A: "ORA failure",
+    0x5B: "ORA failure",
+    0x5C: "AND failure",
+    0x5D: "AND failure",
+    0x5E: "EOR failure",
+    0x5F: "EOR failure",
+    0x60: "ADC failure",
+    0x61: "ADC failure",
+    0x62: "ADC failure",
+    0x63: "ADC failure",
+    0x64: "ADC failure",
+    0x65: "CMP failure",
+    0x66: "CMP failure",
+    0x67: "CMP failure",
+    0x68: "CMP failure",
+    0x69: "CMP failure",
+    0x6A: "CMP failure",
+    0x6B: "CMP failure",
+    0x6C: "SBC failure",
+    0x6D: "SBC failure",
+    0x6E: "SBC failure",
+    0x6F: "SBC failure",
+    0x70: "SBC failure",
+    # zeropage tests
+    0x76: "LDA didn't set the flags properly",
+    0x77: "STA affected flags it shouldn't",
+    0x78: "LDY didn't set the flags properly",
+    0x79: "STY affected flags it shouldn't",
+    0x7A: "LDX didn't set the flags properly",
+    0x7B: "STX affected flags it shouldn't",
+    0x7C: "BIT failure",
+    0x7D: "BIT failure",
+    0x7E: "ORA failure",
+    0x7F: "ORA failure",
+    0x80: "AND failure",
+    0x81: "AND failure",
+    0x82: "EOR failure",
+    0x83: "EOR failure",
+    0x84: "ADC failure",
+    0x85: "ADC failure",
+    0x86: "ADC failure",
+    0x87: "ADC failure",
+    0x88: "ADC failure",
+    0x89: "CMP failure",
+    0x8A: "CMP failure",
+    0x8B: "CMP failure",
+    0x8C: "CMP failure",
+    0x8D: "CMP failure",
+    0x8E: "CMP failure",
+    0x8F: "CMP failure",
+    0x90: "SBC failure",
+    0x91: "SBC failure",
+    0x92: "SBC failure",
+    0x93: "SBC failure",
+    0x94: "SBC failure",
+    0x95: "CPX failure",
+    0x96: "CPX failure",
+    0x97: "CPX failure",
+    0x98: "CPX failure",
+    0x99: "CPX failure",
+    0x9A: "CPX failure",
+    0x9B: "CPX failure",
+    0x9C: "CPY failure",
+    0x9D: "CPY failure",
+    0x9E: "CPY failure",
+    0x9F: "CPY failure",
+    0xA0: "CPY failure",
+    0xA1: "CPY failure",
+    0xA2: "CPY failure",
+    0xA3: "LSR failure",
+    0xA4: "LSR failure",
+    0xA5: "ASL failure",
+    0xA6: "ASL failure",
+    0xA7: "ROL failure",
+    0xA8: "ROL failure",
+    0xA9: "ROR failure",
+    0xAA: "ROR failure",
+    0xAB: "INC failure",
+    0xAC: "INC failure",
+    0xAD: "DEC failure",
+    0xAE: "DEC failure",
+    0xAF: "DEC failure",
+    # Absolute tests
+    0xB0: "LDA didn't set the flags properly",
+    0xB1: "STA affected flags it shouldn't",
+    0xB2: "LDY didn't set the flags properly",
+    0xB3: "STY affected flags it shouldn't",
+    0xB4: "LDX didn't set the flags properly",
+    0xB5: "STX affected flags it shouldn't",
+    0xB6: "BIT failure",
+    0xB7: "BIT failure",
+    0xB8: "ORA failure",
+    0xB9: "ORA failure",
+    0xBA: "AND failure",
+    0xBB: "AND failure",
+    0xBC: "EOR failure",
+    0xBD: "EOR failure",
+    0xBE: "ADC failure",
+    0xBF: "ADC failure",
+    0xC0: "ADC failure",
+    0xC1: "ADC failure",
+    0xC2: "ADC failure",
+    0xC3: "CMP failure",
+    0xC4: "CMP failure",
+    0xC5: "CMP failure",
+    0xC6: "CMP failure",
+    0xC7: "CMP failure",
+    0xC8: "CMP failure",
+    0xC9: "CMP failure",
+    0xCA: "SBC failure",
+    0xCB: "SBC failure",
+    0xCC: "SBC failure",
+    0xCD: "SBC failure",
+    0xCE: "SBC failure",
+    0xCF: "CPX failure",
+    0xD0: "CPX failure",
+    0xD1: "CPX failure",
+    0xD2: "CPX failure",
+    0xD3: "CPX failure",
+    0xD4: "CPX failure",
+    0xD5: "CPX failure",
+    0xD6: "CPY failure",
+    0xD7: "CPY failure",
+    0xD8: "CPY failure",
+    0xD9: "CPY failure",
+    0xDA: "CPY failure",
+    0xDB: "CPY failure",
+    0xDC: "CPY failure",
+    0xDD: "LSR failure",
+    0xDE: "LSR failure",
+    0xDF: "ASL failure",
+    0xE0: "ASL failure",
+    0xE1: "ROR failure",
+    0xE2: "ROR failure",
+    0xE3: "ROL failure",
+    0xE4: "ROL failure",
+    0xE5: "INC failure",
+    0xE6: "INC failure",
+    0xE7: "DEC failure",
+    0xE8: "DEC failure",
+    0xE9: "DEC failure",
+    # (indirect),y tests
+    0xEA: "LDA didn't load what it was supposed to",
+    0xEB: "read location should've wrapped around ffffh to 0000h",
+    0xEC: "should've wrapped zeropage address",
+    0xED: "ORA failure",
+    0xEE: "ORA failure",
+    0xEF: "AND failure",
+    0xF0: "AND failure",
+    0xF1: "EOR failure",
+    0xF2: "EOR failure",
+    0xF3: "ADC failure",
+    0xF4: "ADC failure",
+    0xF5: "ADC failure",
+    0xF6: "ADC failure",
+    0xF7: "ADC failure",
+    0xF8: "CMP failure",
+    0xF9: "CMP failure",
+    0xFA: "CMP failure",
+    0xFB: "CMP failure",
+    0xFC: "CMP failure",
+    0xFD: "CMP failure",
+    0xFE: "CMP failure",
+}
+
+
+def print_page(nes: NES):
+    print("  | " + " ".join([f"{i:02X}" for i in range(16)]))
+    print("-"*(16*2+16-1+4))
+    for hi in range(16):
+        print(f"{hi:01X}0| " + " ".join([f"{nes.read((hi << 4) | i):2X}".replace("0", " ") for i in range(16)]))
+
+
 @pytest.fixture(name="cpu", scope="class")
 def cpu_fixture(nes: NES):
     return nes.cpu
@@ -18,195 +283,17 @@ def nes_fixture(cartridge: Cartridge):
     return nes
 
 
-def test_pre_test_instructions(nes: NES, cpu: CPU6502):
-    cpu.r.PC = 0xC5F5
-    cpu.step()
-    cpu.step()
-    cpu.step()
-    cpu.step()
-    
-
-class BaseTest:
-    PC_START = 0
-    
-    @pytest.fixture(autouse=True, scope="class")
-    def set_PC_fixture(self, cpu):
-        cpu.r.PC = self.PC_START
-        # assert cpu.read(cpu.r.PC == 0xEA)
-        return
-
-    @pytest.fixture(autouse=True, scope="function")
-    def execute_test(self, nes: NES, cpu: CPU6502, PC):
-        print(f"Start test with PC: {cpu.r.PC:02X}")
-        assert cpu.r.PC == PC, (
-            f"Start stared at wrong position."
-            f"PC should be {PC:04X}, but was {cpu.r.PC:04X}"
-        )
+def test_all_nestest(nes: NES, cpu: CPU6502):
+    cpu.r.PC = 0xC000
+    while cpu.r.PC != 0xC62C:
         current_opcode = cpu.fetch()
-        while True:
-            mnemonic, addr_mode = cpu.decode(current_opcode)
-            print(f"Executed {(cpu.r.PC-1):04X}: 0x{current_opcode:02X} ({mnemonic}) with addr mode {addr_mode}")
-            cpu.execute(mnemonic, addr_mode)
-            current_opcode = cpu.fetch()
-            if current_opcode == 0xEA:
-                cpu.r.PC -= 1 # Revert fetch
-                break
-            # Prevent underflowing when pulling addr with RTS
-            if current_opcode == 0x60 and cpu.r.S == 0xFF:
-                break
-
-
-class TestBranch(BaseTest):
-    PC_START = 0xC72D
-
-    @pytest.mark.parametrize("PC", [
-        pytest.param(0xC72D, id="001h_BCS_failed_to_branch"),
-        pytest.param(0xC735, id="002h_BCS_branched_when_it_shouldnt_have"),
-        pytest.param(0xC740, id="003h_BCC_branched_when_it_shouldnt_have"),
-        pytest.param(0xC74B, id="004h_BCC_failed_to_branch"),
-        pytest.param(0xC753, id="005h_BEQ_failed_to_branch"),
-        pytest.param(0xC75C, id="006h_BEQ_branched_when_it_shouldnt_have"),
-        pytest.param(0xC768, id="007h_BNE_failed_to_branch"),
-        pytest.param(0xC771, id="008h_BNE_branched_when_it_shouldnt_have"),
-        pytest.param(0xC77D, id="009h_BVS_failed_to_branch"),
-        pytest.param(0xC78A, id="00Ah_BVC_branched_when_it_shouldnt_have"),
-        pytest.param(0xC796, id="00Bh_BVC_failed_to_branch"),
-        pytest.param(0xC7A3, id="00Ch_BVS_branched_when_it_shouldnt_have"),
-        pytest.param(0xC7AF, id="00Dh_BPL_failed_to_branch"),
-        pytest.param(0xC7B8, id="00Eh_BPL_branched_when_it_shouldnt_have"),
-        pytest.param(0xC7C4, id="00Fh_BMI_failed_to_branch"),
-        pytest.param(0xC7CD, id="010h_BMI_branched_when_it_shouldnt_have"),
-    ])
-    def test_nes_(self, nes: NES, PC):
-        assert nes.read(0x00) == 0
-
-
-class TestFlag(BaseTest):
-    PC_START = 0xC7DB
-
-    @pytest.mark.parametrize("PC", [
-        pytest.param(0xC7DB, id="011h - PHP/flags failure (bits set) "),
-        pytest.param(0xC7F3, id="012h - PHP/flags failure (bits clear)"),
-        pytest.param(0xC80A, id="013h - PHP/flags failure (misc bit states)"),
-        pytest.param(0xC821, id="014h - PLP/flags failure (misc bit states)"),
-        pytest.param(0xC835, id="015h - PLP/flags failure (misc bit states)"),
-        pytest.param(0xC849, id="016h - PHA/PLA failure (PLA didn't affect Z and N properly)"),
-        pytest.param(0xC867, id="017h - PHA/PLA failure (PLA didn't affect Z and N properly)"),
-    ])
-    def test_nes_(self, nes: NES, PC):
-        assert nes.read(0x00) == 0
-
-
-class TestImmi(BaseTest):
-    PC_START = 0xC885
-
-    @pytest.mark.parametrize("PC", [
-        pytest.param(0xC885, id="018h - ORA # failure"),
-        pytest.param(0xC8A2, id="019h - ORA # failure"),
-        pytest.param(0xC8B8, id="01Ah - AND # failure"),
-        pytest.param(0xC8CF, id="01Bh - AND # failure"),
-        pytest.param(0xC8E7, id="01Ch - EOR # failure"),
-        pytest.param(0xC900, id="01Dh - EOR # failure"),
-        pytest.param(0xC916, id="01Eh - ADC # failure (overflow/carry problems)"),
-        pytest.param(0xC92F, id="01Fh - ADC # failure (decimal mode was turned on)"),
-        pytest.param(0xC949, id="020h - ADC # failure"),
-        pytest.param(0xC962, id="021h - ADC # failure"),
-        pytest.param(0xC97B, id="022h - ADC # failure"),
-        pytest.param(0xC991, id="023h - LDA # failure (didn't set N and Z correctly)"),
-        pytest.param(0xC9A5, id="024h - LDA # failure (didn't set N and Z correctly)"),
-        pytest.param(0xC9BA, id="025h - CMP # failure (messed up flags)"),
-        pytest.param(0xC9D0, id="026h - CMP # failure (messed up flags)"),
-        pytest.param(0xC9E3, id="027h - CMP # failure (messed up flags)"),
-        pytest.param(0xC9F3, id="028h - CMP # failure (messed up flags)"),
-        pytest.param(0xCA05, id="029h - CMP # failure (messed up flags)"),
-        pytest.param(0xCA15, id="02Ah - CMP # failure (messed up flags)"),
-        pytest.param(0xCA25, id="02Bh - CPY # failure (messed up flags)"),
-        pytest.param(0xCA35, id="02Ch - CPY # failure (messed up flags)"),
-        pytest.param(0xCA4B, id="02Dh - CPY # failure (messed up flags)"),
-        pytest.param(0xCA5E, id="02Eh - CPY # failure (messed up flags)"),
-        pytest.param(0xCA6E, id="02Fh - CPY # failure (messed up flags)"),
-        pytest.param(0xCA80, id="030h - CPY # failure (messed up flags)"),
-        pytest.param(0xCA90, id="031h - CPY # failure (messed up flags)"),
-        pytest.param(0xCAA0, id="032h - CPX # failure (messed up flags)"),
-        pytest.param(0xCAB0, id="033h - CPX # failure (messed up flags)"),
-        pytest.param(0xCAC6, id="034h - CPX # failure (messed up flags)"),
-        pytest.param(0xCAD9, id="035h - CPX # failure (messed up flags)"),
-        pytest.param(0xCAE9, id="036h - CPX # failure (messed up flags)"),
-        pytest.param(0xCAFB, id="037h - CPX # failure (messed up flags)"),
-        pytest.param(0xCB0B, id="038h - CPX # failure (messed up flags)"),
-        pytest.param(0xCB1B, id="039h - LDX # failure (didn't set N and Z correctly)"),
-        pytest.param(0xCB2B, id="03Ah - LDX # failure (didn't set N and Z correctly)"),
-        pytest.param(0xCB3F, id="03Bh - LDY # failure (didn't set N and Z correctly)"),
-        pytest.param(0xCB54, id="03Ch - LDY # failure (didn't set N and Z correctly)"),
-        pytest.param(0xCB68, id="03Dh - compare(s) stored the result in a register (whoops!)"),
-        pytest.param(0xCB7D, id="071h - SBC # failure"),
-        pytest.param(0xCBDE, id="072h - SBC # failure"),
-        pytest.param(0xCC14, id="073h - SBC # failure"),
-        pytest.param(0xCC62, id="074h - SBC # failure"),
-        pytest.param(0xCCB0, id="075h - SBC # failure"),
-    ])
-    def test_nes_(self, nes: NES, PC):
-        assert nes.read(0x00) == 0
-
-
-class TestImpl(BaseTest):
-    PC_START = 0xCBDE
+        mnemonic, addr_mode = cpu.decode(current_opcode)
+        cpu.execute(mnemonic, addr_mode)
+    cpu.r.PC = 0xC64A
+    cpu.step()
+    cpu.step()
+    err_02h = nes.read(0x10)
+    err_03h = nes.read(0x11)
+    assert err_02h == 0, f"0{err_02h:02X}h: {ERROR_MESSAGES_02h[err_02h]}"
+    assert err_03h == 0
     
-    @pytest.mark.parametrize("PC", [
-        pytest.param(0xCBDE, id="03Eh - INX/DEX/INY/DEY did something bad"),
-        pytest.param(0xCC14, id="03Fh - INY/DEY messed up overflow or carry"),
-        pytest.param(0xCC62, id="040h - INX/DEX messed up overflow or carry"),
-        pytest.param(0xCCB0, id="041h - TAY did something bad (changed wrong regs, messed up flags)"),
-        pytest.param(0xCCEF, id="042h - TAX did something bad (changed wrong regs, messed up flags)"),
-        pytest.param(0xCD2E, id="043h - TYA did something bad (changed wrong regs, messed up flags)"),
-        pytest.param(0xCD6D, id="044h - TXA did something bad (changed wrong regs, messed up flags)"),
-        pytest.param(0xCDAC, id="045h - TXS didn't set flags right, or TSX touched flags and it shouldn't have"),
-    ])
-    def test_nes_(self, nes: NES, PC):
-        assert nes.read(0x00) == 0
-        
-
-class TestStack(BaseTest):
-    PC_START = 0xCDF8
-
-    @pytest.fixture(autouse=True, scope="class")
-    def set_PC_fixture(self, cpu):
-        cpu.r.PC = self.PC_START
-        cpu.step()
-        cpu.step()
-        cpu.step()
-        cpu.step()
-        return
-
-    @pytest.mark.parametrize("PC", [
-        pytest.param(0xCE00, id="046h - wrong data popped, or data not in right location on stack"),
-        pytest.param(0xCE33, id="047h - JSR didn't work as expected"),
-        pytest.param(0xCE5F, id="048h - RTS/JSR shouldn't have affected flags"),
-        pytest.param(0xCE9D, id="049h - RTI/RTS didn't work right when return addys/data were manually pushed"),
-    ])
-    def test_nes_(self, nes: NES, PC):
-        test_number = nes.read(0x00)
-        assert test_number == 0, f"Test {test_number:02X}h failed"
-
-
-class TestAccu(BaseTest):
-    PC_START = 0xCEEE
-
-    @pytest.fixture(autouse=True, scope="class")
-    def set_PC_fixture(self, cpu):
-        cpu.r.PC = self.PC_START
-        cpu.step()
-        cpu.step()
-        cpu.step()
-        cpu.step()
-        return
-
-    @pytest.mark.parametrize("PC", [
-        pytest.param(0xCEF6, id="04Ah - LSR A  failed"),
-        pytest.param(0xCF20, id="04Bh - ASL A  failed"),
-        pytest.param(0xCF4B, id="04Ch - ROR A  failed"),
-        pytest.param(0xCF76, id="04Dh - ROL A  failed"),
-    ])
-    def test_nes_(self, nes: NES, PC):
-        test_number = nes.read(0x00)
-        assert test_number == 0, f"Test {test_number:02X}h failed"
