@@ -28,7 +28,6 @@ BMI|rela|$30|2|2 (3 if branch taken, 4 if page crossed)*
 BNE|rela|$D0|2|2 (3 if branch taken, 4 if page crossed)*
 BPL|rela|$10|2|2 (3 if branch taken, 4 if page crossed)*
 BRK|impl|$00|1|7
-BRK|immi|$00|2|7
 BVC|rela|$50|2|2 (3 if branch taken, 4 if page crossed)*
 BVS|rela|$70|2|2 (3 if branch taken, 4 if page crossed)*
 CLC|impl|$18|1|2

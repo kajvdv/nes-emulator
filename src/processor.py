@@ -29,6 +29,11 @@ OPCODES: dict[int, tuple[str, str]] = {
     for mnemonics, addr_mode, opcode, *_ in opcodes
 }
 
+CYCLES: dict[tuple[str, str], int] = {
+    (mnemonics, addr_mode): cycles
+    for mnemonics, addr_mode, _opcode, _size, cycles in opcodes
+}
+
 
 @dataclass
 class Registers:
@@ -44,6 +49,7 @@ class CPU6502:
     def __init__(self, nes: Bus):
         self.nes = nes
         self.r = Registers()
+        self._pending_pc: int | None = None
 
     def reset(self):
         lo_pc = self.read(0xFFFC)
@@ -65,9 +71,6 @@ class CPU6502:
         self.r.S = (self.r.S - 1) & 0xFF
 
     def pull(self) -> int:
-        if self.r.S == 0xFF:
-            print("pull: Stack underflowed")
-            assert 0
         self.r.S = (self.r.S + 1) & 0xFF
         addr = self.r.S | 0x0100
         value = self.read(addr)
@@ -325,24 +328,22 @@ class CPU6502:
                 value = value - 1
                 self.set_flag("Z", value == 0)
                 self.set_flag("N", bool(value & 0x80))
-            case "DEX": 
+            case "DEX":
                 result = self.r.X - 1
                 self.set_status_flags(
                     Z=result == 0,
                     N=bool(result & 0x80),
                 )
                 self.r.X = result & 0xFF
-                print(f"DEX: new X 0x{self.r.X:02X}")
-                return cycles
-            case "DEY": 
+                return 2
+            case "DEY":
                 result = self.r.Y - 1
                 self.set_status_flags(
                     Z=result == 0,
                     N=bool(result & 0x80),
                 )
                 self.r.Y = result & 0xFF
-                print(f"DEY: new Y 0x{self.r.Y:02X}")
-                return cycles
+                return 2
             case "EOR": 
                 self.r.A = self.r.A ^ value
                 self.set_status_flags(
@@ -356,56 +357,50 @@ class CPU6502:
                 self.set_flag("N", bool(value & 0x80))
             case "INX":
                 result = self.r.X + 1
-                print(f"INX: result 0x{result:02X}")
                 self.r.X = result & 0xFF
                 self.set_status_flags(
                     Z=self.r.X == 0,
                     N=bool(self.r.X & 0x80),
                 )
-                return cycles
+                return 2
             case "INY":
                 result = self.r.Y + 1
-                print(f"INY: result 0x{result:02X}")
                 self.r.Y = result & 0xFF
                 self.set_status_flags(
                     Z=self.r.Y == 0,
                     N=bool(self.r.Y & 0x80),
                 )
-                return cycles
-            case "JMP": 
-                self.r.PC = addr
-                print(f"JMP: self.r.PC = 0x{addr:02X}")
-                return cycles
+                return 2
+            case "JMP":
+                self._pending_pc = addr
+                return CYCLES[("JMP", addr_mode)]
             case "JSR":
-                # print(f"JSR: read on addr {self.read(addr):04X}")
                 return_addr = self.r.PC - 1
-                print(f"JSR: 0x{return_addr:02X} = 0x{self.r.PC:04X} - 1")
                 self.push(return_addr >> 8)
                 self.push(return_addr)
-                self.r.PC = addr
-                print(f"JSR: self.r.PC = 0x{addr:02X}")
-                return cycles
-            case "LDA": 
+                self._pending_pc = addr
+                return CYCLES[("JSR", addr_mode)]
+            case "LDA":
                 self.r.A = value
                 self.set_status_flags(
                     Z=value == 0,
                     N=bool(value & 0x80),
                 )
-                return 2
+                return CYCLES[("LDA", addr_mode)]
             case "LDX":
                 self.r.X = value
                 self.set_status_flags(
                     Z=value == 0,
                     N=bool(value & 0x80),
                 )
-                return 2
-            case "LDY": 
+                return CYCLES[("LDX", addr_mode)]
+            case "LDY":
                 self.r.Y = value
                 self.set_status_flags(
                     Z=value == 0,
                     N=bool(value & 0x80),
                 )
-                return 2
+                return CYCLES[("LDY", addr_mode)]
             case "LSR":
                 result = value >> 1
                 print(f"LSR: {result} = {value} >> 1")
@@ -461,20 +456,17 @@ class CPU6502:
                     N=bool(result & 0x80),
                 )
                 value = result
-            case "RTI": 
+            case "RTI":
                 self.r.P = self.pull()
                 lo = self.pull()
                 hi = self.pull()
-                addr = (hi << 8) | lo
-                self.r.PC = addr
-                return cycles
+                self._pending_pc = (hi << 8) | lo
+                return CYCLES[("RTI", addr_mode)]
             case "RTS":
                 lo = self.pull()
                 hi = self.pull()
-                addr = (hi << 8) | lo
-                self.r.PC = addr + 1
-                print(f"RTS: returning to {self.r.PC:04X}")
-                return cycles
+                self.r.PC = ((hi << 8) | lo) + 1
+                return CYCLES[("RTS", addr_mode)]
             case "SBC": 
                 result = self.r.A + ~value + self.get_flag("C")
                 self.set_status_flags(
@@ -494,18 +486,15 @@ class CPU6502:
             case "SEI": 
                 self.set_status_flags(I=True)
                 return 2
-            case "STA": 
+            case "STA":
                 self.nes.write(addr, self.r.A)
-                print(f"self.nes.write(0x{addr:04X}, 0x{self.r.A:02X})")
-                return 4
-            case "STX": 
-                print(f"STX: Wrting {self.r.X:02X} to {addr:04X}")
+                return CYCLES[("STA", addr_mode)]
+            case "STX":
                 self.nes.write(addr, self.r.X)
-                return 4
+                return CYCLES[("STX", addr_mode)]
             case "STY":
                 self.nes.write(addr, self.r.Y)
-                print(f"STY: self.nes.write(0x{addr:02X}, 0x{self.r.Y:02X})")
-                return 4
+                return CYCLES[("STY", addr_mode)]
             case "TAX":
                 print(f"TAX: A 0x{self.r.A:02X} -> X")
                 self.r.X = self.r.A
@@ -598,10 +587,15 @@ class CPU6502:
             ):
                 self.write(addr, value & 0xFF)
                 return cycles + 3
-        raise Exception(f"{mnemonic} with addr_mode: {addr_mode} not implemented")
+        return CYCLES[(mnemonic, addr_mode)]
 
 
     def step(self):
+        self._pending_pc = None
         opcode = self.fetch()
-        mnomonic, addr_mode = self.decode(opcode)
-        return self.execute(mnomonic, addr_mode)
+        mnemonic, addr_mode = self.decode(opcode)
+        cycles = self.execute(mnemonic, addr_mode)
+        if self._pending_pc is not None:
+            self.r.PC = self._pending_pc
+            self._pending_pc = None
+        return cycles
