@@ -65,11 +65,13 @@ class NES:
             ...
         # elif 0x2008 <= 0x3FFF:
         #     return (addr & 0xF) | 0x2000
+        elif 0x4000 <= addr <= 0x4014:
+            return 0
         elif addr == 0x4015:
             return 0
         elif addr in [0x4016, 0x4017]:
             print("reading for user input")
-            return 255
+            return 0xFF
         elif 0x8000 <= addr <= 0xFFFF:
             return self.cartridge.read(addr)
         else:

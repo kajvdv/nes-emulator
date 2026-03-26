@@ -71,7 +71,7 @@ class CPU6502:
         self.r.S = (self.r.S + 1) & 0xFF
         addr = self.r.S | 0x0100
         value = self.read(addr)
-        print(f"pull: pulled 0x{value:02X} from 0x{addr:04X}")
+        # print(f"pull: pulled 0x{value:02X} from 0x{addr:04X}")
         return value
     
     def get_flag(self, flag: Literal["N","V","1","B","D","I","Z","C"]):
@@ -105,8 +105,8 @@ class CPU6502:
             self.set_flag("Z", Z)
         if C != None:
             self.set_flag("C", C)
-        print(f"   NV1BDIZC")
-        print(f"P: {self.r.P:08b}")
+        # print(f"   NV1BDIZC")
+        # print(f"P: {self.r.P:08b}")
     
     def branch_off(self, condition, offset):
         if offset & 0x80:
@@ -114,6 +114,15 @@ class CPU6502:
             offset = offset - 0x100
         if condition:
             self.r.PC += offset
+
+    def nmi(self):
+        self.push(self.r.PC >> 8)
+        self.push(self.r.PC & 0xFF)
+        self.push(self.r.P & 0b1110_1111)
+        lo_pc = self.read(0xFFFA)
+        hi_pc = self.read(0xFFFB)
+        pc = (hi_pc << 8) | lo_pc
+        self.r.PC = pc
     
     def fetch(self) -> int:
         opcode = self.read(self.r.PC)
@@ -131,20 +140,25 @@ class CPU6502:
         print(f"Execute {(self.r.PC-1):04X}: ({mnemonic}) with addr mode {addr_mode}")
         value = -1
         addr = -1
+        cycles = 0
         match addr_mode:
             case "accu":
                 value = self.r.A
+                cycles = 2
             case "immi":
                 value = self.read(self.r.PC)
                 self.r.PC += 1
+                cycles = 2
             case "zero":
                 addr = self.read(self.r.PC)
                 self.r.PC += 1
                 value = self.read(addr)
+                cycles = 3
             case "zerx":
                 addr = (self.read(self.r.PC) + self.r.X) & 0xFF
                 self.r.PC += 1
                 value = self.read(addr)
+                cycles = 4
             case "zery":
                 addr = (self.read(self.r.PC) + self.r.Y) & 0xFF
                 self.r.PC += 1
@@ -156,6 +170,7 @@ class CPU6502:
                 self.r.PC += 1
                 addr = (hi << 8) | lo
                 value = self.read(addr)
+                cycles = 4
             case "absx":
                 lo = self.read(self.r.PC)
                 self.r.PC += 1
@@ -163,6 +178,7 @@ class CPU6502:
                 self.r.PC += 1
                 addr = ((hi << 8) | lo) + self.r.X
                 value = self.read(addr)
+                cycles = 4
             case "absy":
                 lo = self.read(self.r.PC)
                 self.r.PC += 1
@@ -170,6 +186,7 @@ class CPU6502:
                 self.r.PC += 1
                 addr = ((hi << 8) | lo) + self.r.Y
                 value = self.read(addr)
+                cycles = 4
             case "indx":
                 addr = self.read(self.r.PC)
                 self.r.PC += 1
@@ -177,6 +194,7 @@ class CPU6502:
                 hi = self.read((addr + self.r.X + 1) & 0xFF)
                 addr = (hi << 8) | lo
                 value = self.read(addr)
+                cycles = 6
             case "indy":
                 addr = self.read(self.r.PC)
                 self.r.PC += 1
@@ -184,6 +202,7 @@ class CPU6502:
                 hi = self.read((addr + 1) & 0xFF)
                 addr = ((hi << 8) | lo)  + self.r.Y
                 value = self.read(addr)
+                cycles = 5
             case "rela":
                 value = self.read(self.r.PC)
                 self.r.PC += 1
@@ -213,7 +232,7 @@ class CPU6502:
                 )
                 self.r.A = result & 0xFF
                 print(f"ADC: result was: {result:08b}, loaded in A: {self.r.A:08b}")
-                return 0
+                return cycles
             case "AND": 
                 self.r.A = self.r.A & value
                 print(f"AND: result in A {self.r.A:08b}")
@@ -221,7 +240,7 @@ class CPU6502:
                     Z=self.r.A == 0,
                     N=bool(self.r.A & 0x80),
                 )
-                return 0
+                return cycles
             case "ASL": 
                 result = (value << 1) & 0xFF
                 print(f"0x{result:02X} = (0x{value:02X} << 1) & 0xFF")
@@ -246,7 +265,7 @@ class CPU6502:
                     N=bool(value & 0b10000000),
                     V=bool(value & 0b01000000),
                 )
-                return 0
+                return cycles
             case "BMI":
                 self.branch_off(self.get_flag("N"), value)
                 return 2
@@ -256,7 +275,8 @@ class CPU6502:
             case "BPL": 
                 self.branch_off(not self.get_flag("N"), value)
                 return 2
-            case "BRK": ...
+            case "BRK": 
+                ...
             case "BVC": 
                 self.branch_off(not self.get_flag("V"), value)
                 return 2
@@ -269,7 +289,8 @@ class CPU6502:
             case "CLD": 
                 self.set_flag("D", False)
                 return 2
-            case "CLI": ...
+            case "CLI":
+                self.set_flag("I", False)
             case "CLV": 
                 self.set_flag("V", False)
                 return 2
@@ -281,7 +302,7 @@ class CPU6502:
                     Z=self.r.A == value,
                     N=bool(result),
                 )
-                return 0
+                return cycles
             case "CPX": 
                 result = (self.r.X - value) & 0x80
                 print(f"CMX: comparing X 0x{self.r.X:02X} with 0x{value:02X}, resulting in 0x{result:02X}")
@@ -290,7 +311,7 @@ class CPU6502:
                     Z=self.r.X == value,
                     N=bool(result),
                 )
-                return 0
+                return cycles
             case "CPY": 
                 result = (self.r.Y - value) & 0x80
                 print(f"CMY: comparing Y {self.r.Y:08b} with {value:08b}, resulting in {result:08b}")
@@ -299,7 +320,7 @@ class CPU6502:
                     Z=self.r.Y == value,
                     N=bool(result),
                 )
-                return 0
+                return cycles
             case "DEC": 
                 value = value - 1
                 self.set_flag("Z", value == 0)
@@ -312,7 +333,7 @@ class CPU6502:
                 )
                 self.r.X = result & 0xFF
                 print(f"DEX: new X 0x{self.r.X:02X}")
-                return 0
+                return cycles
             case "DEY": 
                 result = self.r.Y - 1
                 self.set_status_flags(
@@ -321,14 +342,14 @@ class CPU6502:
                 )
                 self.r.Y = result & 0xFF
                 print(f"DEY: new Y 0x{self.r.Y:02X}")
-                return 0
+                return cycles
             case "EOR": 
                 self.r.A = self.r.A ^ value
                 self.set_status_flags(
                     Z=self.r.A == 0,
                     N=bool(self.r.A & 0x80),
                 )
-                return 0
+                return cycles
             case "INC":
                 value = (value + 1) & 0xFF
                 self.set_flag("Z", value == 0)
@@ -341,7 +362,7 @@ class CPU6502:
                     Z=self.r.X == 0,
                     N=bool(self.r.X & 0x80),
                 )
-                return 0
+                return cycles
             case "INY":
                 result = self.r.Y + 1
                 print(f"INY: result 0x{result:02X}")
@@ -350,11 +371,11 @@ class CPU6502:
                     Z=self.r.Y == 0,
                     N=bool(self.r.Y & 0x80),
                 )
-                return 0
+                return cycles
             case "JMP": 
                 self.r.PC = addr
                 print(f"JMP: self.r.PC = 0x{addr:02X}")
-                return 0
+                return cycles
             case "JSR":
                 # print(f"JSR: read on addr {self.read(addr):04X}")
                 return_addr = self.r.PC - 1
@@ -363,7 +384,7 @@ class CPU6502:
                 self.push(return_addr)
                 self.r.PC = addr
                 print(f"JSR: self.r.PC = 0x{addr:02X}")
-                return 0
+                return cycles
             case "LDA": 
                 self.r.A = value
                 self.set_status_flags(
@@ -402,7 +423,7 @@ class CPU6502:
                     Z=self.r.A == 0,
                     N=bool(self.r.A & 0x80),
                 )
-                return 0
+                return cycles
             case "PHA": 
                 print(f"PHA: pushing A 0b{self.r.A:08b}/0x{self.r.A:02X}")
                 self.push(self.r.A)
@@ -446,14 +467,14 @@ class CPU6502:
                 hi = self.pull()
                 addr = (hi << 8) | lo
                 self.r.PC = addr
-                return 0
+                return cycles
             case "RTS":
                 lo = self.pull()
                 hi = self.pull()
                 addr = (hi << 8) | lo
                 self.r.PC = addr + 1
                 print(f"RTS: returning to {self.r.PC:04X}")
-                return 0
+                return cycles
             case "SBC": 
                 result = self.r.A + ~value + self.get_flag("C")
                 self.set_status_flags(
@@ -463,7 +484,7 @@ class CPU6502:
                     N=bool(result & 0x80),
                 )
                 self.r.A = result & 0xFF
-                return 0
+                return cycles
             case "SEC": 
                 self.set_status_flags(C=True)
                 return 2
@@ -540,7 +561,7 @@ class CPU6502:
             ):
                 self.r.A = value & 0xFF
                 print(f"accu: self.r.A = 0x{value:02X} & 0xFF")
-                return 0
+                return cycles
             case (
                 ("LSR", "zero")
                 | ("ASL", "zero")
@@ -556,7 +577,7 @@ class CPU6502:
                 | ("DEC", "zerx")
             ):
                 self.write(addr, value & 0xFF)
-                return 0
+                return cycles + 2
             case (
                 ("LSR", "abso")
                 | ("ASL", "abso")
@@ -564,7 +585,11 @@ class CPU6502:
                 | ("ROL", "abso")
                 | ("INC", "abso")
                 | ("DEC", "abso")
-                | ("LSR", "absx")
+            ):
+                self.write(addr, value & 0xFF)
+                return cycles + 2
+            case (
+                ("LSR", "absx")
                 | ("ASL", "absx")
                 | ("ROR", "absx")
                 | ("ROL", "absx")
@@ -572,7 +597,7 @@ class CPU6502:
                 | ("DEC", "absx")
             ):
                 self.write(addr, value & 0xFF)
-                return 0
+                return cycles + 3
         raise Exception(f"{mnemonic} with addr_mode: {addr_mode} not implemented")
 
 
