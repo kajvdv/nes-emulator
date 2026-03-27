@@ -286,9 +286,7 @@ def nes_fixture(cartridge: Cartridge):
 def test_all_nestest(nes: NES, cpu: CPU6502):
     cpu.r.PC = 0xC000
     while cpu.r.PC != 0xC62C:
-        current_opcode = cpu.fetch()
-        mnemonic, addr_mode = cpu.decode(current_opcode)
-        cpu.execute(mnemonic, addr_mode)
+        cpu.step()
     cpu.r.PC = 0xC64A
     cpu.step()
     cpu.step()
