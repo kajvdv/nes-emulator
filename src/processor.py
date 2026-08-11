@@ -376,6 +376,8 @@ class CPU6502:
                 self.r.PC = addr
                 print(f"JMP: self.r.PC = 0x{addr:02X}")
                 return cycles
+                self.r.Y = (self.r.Y + 1) & 0xFF
+                self.set_status_flags(Z=self.r.Y == 0, N=bool(self.r.Y & 0x80))
             case "JSR":
                 # print(f"JSR: read on addr {self.read(addr):04X}")
                 return_addr = self.r.PC - 1
@@ -385,7 +387,7 @@ class CPU6502:
                 self.r.PC = addr
                 print(f"JSR: self.r.PC = 0x{addr:02X}")
                 return cycles
-            case "LDA": 
+            case "LDA":
                 self.r.A = value
                 self.set_status_flags(
                     Z=value == 0,

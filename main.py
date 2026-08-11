@@ -13,7 +13,7 @@ def main():
     nes.ppu.status = 0x80
     nes.reset()
     while True:
-        screen.process_events()
+        # screen.process_events()
         frame = nes.get_next_frame()
         screen.display(frame)
 
